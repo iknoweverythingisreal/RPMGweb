@@ -2,10 +2,10 @@ import psycopg2
 
 try:
     conn = psycopg2.connect(
-        dbname="rpmedia_db",
+        dbname="postgres",
         user="postgres",
-        password="rpmedia",
-        host="localhost",
+        password="bTbFieIrJcEKVnWv",
+        host="db.vxycwelhariotzfwuffe.supabase.co",
         port="5432"
     )
     cur = conn.cursor()
