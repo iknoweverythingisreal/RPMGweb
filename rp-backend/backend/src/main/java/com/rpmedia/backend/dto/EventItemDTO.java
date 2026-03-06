@@ -20,6 +20,11 @@ public class EventItemDTO {
     private String model; // items.model
     private String uom; // items.uom (UNIT, SQM)
 
+    // Event details for Replace Items page
+    private String eventStartDate; // event.start_date
+    private String eventEndDate; // event.end_date
+    private String location; // event.location
+
     private BigDecimal requestedQuantity; // event_items.requested_quantity
     private BigDecimal allocatedQuantity; // event_items.allocated_quantity
 
@@ -36,5 +41,7 @@ public class EventItemDTO {
     private String overbookNote; // หมายเหตุจากการอนุมัติ
     private Long overbookApprovedBy; // userId ของ CEO ที่อนุมัติ
     private LocalDateTime overbookApprovedAt; // เวลาที่อนุมัติ
+    private String source; // RENT_EXTERNAL etc.
     private List<AssignedSerialDTO> serials;
+    private String room; // room name from metadata
 }

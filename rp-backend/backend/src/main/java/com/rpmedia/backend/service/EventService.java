@@ -61,7 +61,7 @@ public class EventService {
     }
 
     // ========= เมธอดใหม่สำหรับ Calendar =========
-
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public List<CalendarEventDTO> getAllEventsDTO() {
         return eventRepository.findAll().stream()
                 .map(this::toDto)
@@ -141,6 +141,7 @@ public class EventService {
     private CalendarEventDTO toDto(Event e) {
         String ownerName = null;
         String ownerColor = "#888";
+        String ownerRole = null;
         Long ownerId = null;
 
         // Priority 1: CalendarOwner (Teamup)
@@ -159,6 +160,7 @@ public class EventService {
             ownerName = (owner.getName() != null && !owner.getName().isBlank())
                     ? owner.getName()
                     : owner.getEmail();
+            ownerRole = owner.getRole() != null ? owner.getRole().name() : null; // Extract role for frontend
             if (owner.getCalendarColor() != null && !owner.getCalendarColor().isBlank()) {
                 ownerColor = owner.getCalendarColor();
             }
@@ -201,6 +203,7 @@ public class EventService {
                 .ownerId(ownerId)
                 .ownerName(ownerName)
                 .ownerColorHex(ownerColor)
+                .ownerRole(ownerRole)
                 .allColors(allColors.isEmpty() ? null : allColors)
                 .type(type)
                 .location(e.getLocation())
@@ -239,6 +242,9 @@ public class EventService {
                         .lineTotal(i.getLineTotal())
                         .status(i.getStatus() != null ? i.getStatus().name() : null)
                         .remark(i.getRemark())
+                        .room(i.getMetadata() != null && i.getMetadata().has("room")
+                                ? i.getMetadata().get("room").asText()
+                                : null)
                         .build())
                 .toList();
 

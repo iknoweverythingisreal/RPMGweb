@@ -23,6 +23,10 @@ public class OverbookingService {
     @Autowired
     private EventHistoryService historyService;
 
+    private int nvl(Integer v) {
+        return v == null ? 0 : v;
+    }
+
     /**
      * ============================
      * MANAGER: REQUEST OVERBOOK
@@ -42,7 +46,7 @@ public class OverbookingService {
 
         ei.setOverbookStatus(OverbookStatus.PENDING);
         ei.setOverbookNote(note);
-        int qty = Math.max(0, ei.getRequestedQuantity() - ei.getAllocatedQuantity());
+        int qty = Math.max(0, nvl(ei.getRequestedQuantity()) - nvl(ei.getAllocatedQuantity()));
         ei.setOverbookQty(qty);
         ei.setOverbookApprovedAt(null);
         ei.setOverbookApprovedBy(null);

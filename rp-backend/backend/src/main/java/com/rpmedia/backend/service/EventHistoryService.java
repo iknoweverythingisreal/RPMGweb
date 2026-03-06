@@ -25,24 +25,29 @@ public class EventHistoryService {
     }
 
     // ✅ ของใหม่ — ใช้โดย EventItemService (รองรับ userId, action, note)
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void log(Long eventId, Long userId, String action, String note) {
         logNonTransactional(eventId, userId, action, note);
     }
 
     public void logNonTransactional(Long eventId, Long userId, String action, String note) {
+        System.out.println(">>> [LOG_HISTORY] EventID=" + eventId + ", Action=" + action);
         try {
             EventHistory history = new EventHistory();
-            history.setEventId((eventId)); // ผูก event
+            history.setEventId(eventId);
             history.setUserId(userId);
             history.setAction(action);
             history.setNote(note);
             history.setChangedAt(LocalDateTime.now());
-            repository.save(history);
 
-            System.out.println("🟢 [History] " + action + " | user=" + userId + " | event=" + eventId);
+            // Final safety check: if repository is not available don't crash
+            if (repository != null) {
+                repository.save(history);
+                System.out.println("🟢 [History] " + action + " | user=" + userId + " | event=" + eventId);
+            }
         } catch (Exception e) {
-            System.err.println("⚠️ Failed to log event history: " + e.getMessage());
+            System.err.println("⚠️ Failed to log event history (data likely missing in DB): " + e.getMessage());
+            // e.printStackTrace(); // Optional for deep debugging
         }
     }
 

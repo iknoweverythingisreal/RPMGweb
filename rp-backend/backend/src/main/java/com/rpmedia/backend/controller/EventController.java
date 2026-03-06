@@ -37,7 +37,8 @@ public class EventController {
             List<CalendarEventDTO> events = eventService.getAllEventsDTO();
             return ResponseEntity.ok(events);
         } catch (Exception e) {
-            return ResponseEntity.status(500).build();
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(null);
         }
     }
 

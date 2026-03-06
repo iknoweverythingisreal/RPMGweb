@@ -23,4 +23,7 @@ public class EventItemRequestDTO {
     private List<String> serials;
     private Integer qty;
     private String overbookNote;
+    private String status;
+    private String source;
+    private Boolean autoApprove;
 }

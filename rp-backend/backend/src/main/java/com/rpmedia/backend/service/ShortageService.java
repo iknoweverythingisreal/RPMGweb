@@ -51,6 +51,10 @@ public class ShortageService {
         List<ItemShortageDTO> result = new ArrayList<>();
 
         for (EventItem ei : currentItems) {
+            // Skip items with no physical inventory record (e.g. External Rentals)
+            if (ei.getItem() == null)
+                continue;
+
             Long itemId = ei.getItem().getId();
             String itemName = ei.getItem().getName();
 

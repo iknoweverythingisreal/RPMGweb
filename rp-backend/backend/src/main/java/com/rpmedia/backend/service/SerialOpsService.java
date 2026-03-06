@@ -61,57 +61,69 @@ public class SerialOpsService {
 
   public List<Long> findUnitsInUse(Long itemId, Long eventId, String start, String end) {
     return jdbc.queryForList("""
-        SELECT eiu.item_unit_id
-        FROM event_item_units eiu
-        JOIN event_items ei ON ei.id = eiu.event_item_id
-        JOIN events e ON e.id = ei.event_id
-        WHERE ei.item_id = ?
-          AND e.id <> ?
-          AND e.start_date <= ?
-          AND e.end_date >= ?
-          AND eiu.status IN ('PICKED', 'OUT')
-    """,
-    Long.class,
-    itemId, eventId, end, start   // ← ตรงนี้ผิด (ต้องสลับ)
+            SELECT eiu.item_unit_id
+            FROM event_item_units eiu
+            JOIN event_items ei ON ei.id = eiu.event_item_id
+            JOIN events e ON e.id = ei.event_id
+            WHERE ei.item_id = ?
+              AND e.id <> ?
+              AND e.start_date <= ?
+              AND e.end_date >= ?
+              AND (ei.status IS NULL OR (ei.status <> 'CANCELLED' AND ei.status <> 'RETURNED'))
+              AND eiu.status IN ('PICKED', 'OUT', 'RESERVED')
+        """,
+        Long.class,
+        itemId, eventId, end, start // end date against start_date, start date against end_date
     );
-}
+  }
 
   public List<SerialAvailabilityDTO> getAvailability(Long itemId, Long eventId, String start, String end) {
 
     List<Long> allUnits = findAllUnits(itemId);
-    List<Long> inUse = findUnitsInUse(itemId, eventId, start, end);
-    List<Long> available = findAvailableUnits(itemId);
+    List<Long> inUseByOthers = findUnitsInUse(itemId, eventId, start, end);
+    List<Long> availableUnits = findAvailableUnits(itemId);
+
+    // Find units already booked/reserved for THIS event
+    List<Long> bookedBySelf = new ArrayList<>();
+    if (eventId != null) {
+      bookedBySelf = jdbc.queryForList("""
+              SELECT eiu.item_unit_id
+              FROM event_item_units eiu
+              JOIN event_items ei ON ei.id = eiu.event_item_id
+              WHERE ei.item_id = ?
+                AND ei.event_id = ?
+                AND (ei.status IS NULL OR (ei.status <> 'CANCELLED' AND ei.status <> 'RETURNED'))
+          """, Long.class, itemId, eventId);
+    }
 
     List<SerialAvailabilityDTO> result = new ArrayList<>();
 
     for (Long uid : allUnits) {
+      SerialAvailabilityDTO dto = new SerialAvailabilityDTO();
+      dto.setItemUnitId(uid);
 
-        SerialAvailabilityDTO dto = new SerialAvailabilityDTO();
-        dto.setItemUnitId(uid);
+      // Fetch serial string
+      String serial = jdbc.queryForObject(
+          "SELECT serial FROM item_units WHERE id=?",
+          String.class,
+          uid);
+      dto.setSerial(serial);
 
-        // ดึง serial string จาก item_units
-        String serial = jdbc.queryForObject(
-                "SELECT serial FROM item_units WHERE id=?",
-                String.class,
-                uid
-        );
+      if (inUseByOthers.contains(uid)) {
+        dto.setStatus("IN_USE"); // Used by another event
+      } else if (bookedBySelf.contains(uid)) {
+        dto.setStatus("BOOKED_SELF"); // Already booked for this event
+      } else if (availableUnits.contains(uid)) {
+        dto.setStatus("AVAILABLE");
+      } else {
+        dto.setStatus("UNAVAILABLE"); // Damaged, etc.
+      }
 
-        dto.setSerial(serial);
-
-        if (inUse.contains(uid)) {
-            dto.setStatus("IN_USE");
-        } else if (available.contains(uid)) {
-            dto.setStatus("AVAILABLE");
-        } else {
-            dto.setStatus("UNAVAILABLE");
-        }
-
-        result.add(dto);
+      result.add(dto);
     }
 
     return result;
-}
-
+  }
 
   @Transactional
   public int linkUnitsPicked(Long eventId, Long eventItemId, List<Long> unitIds, String note) {
@@ -205,11 +217,11 @@ public class SerialOpsService {
   }
 
   // =============================
-// NEW: GET SERIALS FOR EVENT-ITEM
-// =============================
-public List<SerialUnitDTO> getUnitsByEventItem(Long eventItemId) {
+  // NEW: GET SERIALS FOR EVENT-ITEM
+  // =============================
+  public List<SerialUnitDTO> getUnitsByEventItem(Long eventItemId) {
     return jdbc.query("""
-            SELECT 
+            SELECT
                 eiu.item_unit_id,
                 iu.serial,
                 eiu.status,
@@ -223,16 +235,14 @@ public List<SerialUnitDTO> getUnitsByEventItem(Long eventItemId) {
             ORDER BY eiu.id
         """,
         (rs, rowNum) -> new SerialUnitDTO(
-                rs.getLong("item_unit_id"),
-                rs.getString("serial"),
-                rs.getString("status"),
-                rs.getTimestamp("picked_at") != null ? rs.getTimestamp("picked_at").toLocalDateTime() : null,
-                rs.getTimestamp("out_at") != null ? rs.getTimestamp("out_at").toLocalDateTime() : null,
-                rs.getTimestamp("returned_at") != null ? rs.getTimestamp("returned_at").toLocalDateTime() : null,
-                rs.getString("note")
-        ),
-        eventItemId
-    );
-}
+            rs.getLong("item_unit_id"),
+            rs.getString("serial"),
+            rs.getString("status"),
+            rs.getTimestamp("picked_at") != null ? rs.getTimestamp("picked_at").toLocalDateTime() : null,
+            rs.getTimestamp("out_at") != null ? rs.getTimestamp("out_at").toLocalDateTime() : null,
+            rs.getTimestamp("returned_at") != null ? rs.getTimestamp("returned_at").toLocalDateTime() : null,
+            rs.getString("note")),
+        eventItemId);
+  }
 
 }

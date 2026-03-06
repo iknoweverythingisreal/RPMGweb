@@ -144,13 +144,14 @@ public class EquipmentCartService {
     }
 
     // upsert
-    EventItem ei = eventItemRepo.findByEventIdAndItemId(eventId, it.getId())
-        .orElseGet(() -> {
-          EventItem x = new EventItem();
-          x.setEvent(ev);
-          x.setItem(it);
-          return x;
-        });
+    List<EventItem> list = eventItemRepo.findByEventIdAndItemId(eventId, it.getId());
+    EventItem ei = list.isEmpty() ? null : list.get(0);
+
+    if (ei == null) {
+      ei = new EventItem();
+      ei.setEvent(ev);
+      ei.setItem(it);
+    }
 
     ei.setRequestedQuantity(req.requestedQuantity());
     ei.setReturnDate(returnDate);

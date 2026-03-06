@@ -71,6 +71,9 @@ public class Item {
   @Column(name = "available_quantity")
   private Integer availableQuantity;
 
+  @Transient
+  private String serial; // For creation only
+
   // === getters & setters ===
   public Long getId() {
     return id;
@@ -206,6 +209,14 @@ public class Item {
 
   public void setAvailableQuantity(Integer availableQuantity) {
     this.availableQuantity = availableQuantity;
+  }
+
+  public String getSerial() {
+    return serial;
+  }
+
+  public void setSerial(String serial) {
+    this.serial = serial;
   }
 
   public Boolean getSerialControl() {

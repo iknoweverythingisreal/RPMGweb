@@ -3,6 +3,7 @@ package com.rpmedia.backend.util;
 import com.rpmedia.backend.model.Item;
 import com.rpmedia.backend.model.ItemUnit;
 import com.rpmedia.backend.model.UnitStatus;
+import com.rpmedia.backend.repository.EventItemRepository;
 import com.rpmedia.backend.repository.ItemRepository;
 import com.rpmedia.backend.repository.ItemUnitRepository;
 import org.apache.commons.csv.CSVFormat;
@@ -11,6 +12,8 @@ import org.apache.commons.csv.CSVRecord;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.cache.CacheManager;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
@@ -20,39 +23,48 @@ import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Component
 public class CsvDataLoader implements CommandLineRunner {
 
     private final ItemRepository itemRepository;
     private final ItemUnitRepository itemUnitRepository;
+    private final EventItemRepository eventItemRepository;
     private final CacheManager cacheManager;
+    private final TransactionTemplate transactionTemplate;
 
     @Autowired
     public CsvDataLoader(ItemRepository itemRepository, ItemUnitRepository itemUnitRepository,
-            CacheManager cacheManager) {
+            EventItemRepository eventItemRepository,
+            CacheManager cacheManager,
+            TransactionTemplate transactionTemplate) {
         this.itemRepository = itemRepository;
         this.itemUnitRepository = itemUnitRepository;
+        this.eventItemRepository = eventItemRepository;
         this.cacheManager = cacheManager;
+        this.transactionTemplate = transactionTemplate;
     }
 
     @Override
     public void run(String... args) throws Exception {
-        java.io.File seedFlag = new java.io.File("data_seeded.flag");
-        if (seedFlag.exists()) {
-            System.out.println("ℹ️ Data already seeded. Skipping full re-import.");
+        System.out.println("📦 Checking for inventory consolidation requirements...");
+
+        // 1. Consolidate existing duplicates BEFORE import
+        consolidateExistingItems();
+
+        // Check DB status
+        if (itemRepository.count() > 0) {
+            // Even if we skip import, the consolidation above fixed the mess.
+            // But we might want to refresh from CSV anyway to get latest metadata.
+            // For now, let's respect the skip if items exist (meaning metadata is likely
+            // okay).
+            System.out.println("ℹ️ Inventory already populated. Consolidation complete.");
             return;
         }
 
-        System.out.println("🔥 Starting Full CSV Data Re-import (Clear + Clean Sync)...");
-
-        // Clear existing data (destructive as requested)
-        System.out.println("🗑️ Clearing existing items and units...");
-        itemUnitRepository.deleteAll();
-        itemRepository.deleteAll();
+        System.out.println("🚀 Starting Grouped Data Import from CSV...");
 
         List<String> files = Arrays.asList(
                 "csv/RP Inventory 2024-Sound.csv",
@@ -91,24 +103,15 @@ public class CsvDataLoader implements CommandLineRunner {
                     if (name == null || name.isEmpty())
                         continue;
 
-                    // Fresh Import (No upsert needed since we cleared)
-                    Item item = new Item();
-                    item.setName(name);
-                    item.setAvailableQuantity(0);
-
-                    item.setDescription(
-                            (record.isMapped("Description") && record.isSet("Description"))
-                                    ? record.get("Description").trim()
-                                    : "");
-                    item.setBrand(
-                            (record.isMapped("Brand") && record.isSet("Brand")) ? record.get("Brand").trim() : "");
-                    item.setModel(
-                            (record.isMapped("Model") && record.isSet("Model")) ? record.get("Model").trim() : "");
-                    item.setCategory(detectCategoryFromFile(filePath));
-                    item.setUom((record.isMapped("UOM") && record.isSet("UOM")) ? record.get("UOM").trim() : "UNIT");
-                    item.setRemark(
-                            (record.isMapped("Remark") && record.isSet("Remark")) ? record.get("Remark").trim() : "");
-                    item.setStatus(UnitStatus.AVAILABLE);
+                    String brand = (record.isMapped("Brand") && record.isSet("Brand")) ? record.get("Brand").trim()
+                            : "";
+                    String model = (record.isMapped("Model") && record.isSet("Model")) ? record.get("Model").trim()
+                            : "";
+                    String description = (record.isMapped("Description") && record.isSet("Description"))
+                            ? record.get("Description").trim()
+                            : "";
+                    String uom = (record.isMapped("UOM") && record.isSet("UOM")) ? record.get("UOM").trim() : "UNIT";
+                    String category = detectCategoryFromFile(filePath);
 
                     BigDecimal quantity = BigDecimal.ZERO;
                     try {
@@ -121,9 +124,30 @@ public class CsvDataLoader implements CommandLineRunner {
                     } catch (Exception e) {
                         // ignore invalid qty
                     }
-                    item.setTotalQuantity(quantity.intValue());
 
-                    Item savedItem = itemRepository.save(item);
+                    // 🔹 UPSERT Strategy: Check if item already created in this run
+                    Optional<Item> existing = itemRepository
+                            .findFirstByCategoryIgnoreCaseAndBrandIgnoreCaseAndModelIgnoreCaseAndDescriptionIgnoreCaseAndUomIgnoreCase(
+                                    category, brand, model, description, uom);
+
+                    Item savedItem;
+                    if (existing.isPresent()) {
+                        savedItem = existing.get();
+                        savedItem.setTotalQuantity(savedItem.getTotalQuantity() + quantity.intValue());
+                        savedItem = itemRepository.save(savedItem);
+                    } else {
+                        Item item = new Item();
+                        item.setName(name);
+                        item.setBrand(brand);
+                        item.setModel(model);
+                        item.setDescription(description);
+                        item.setCategory(category);
+                        item.setUom(uom);
+                        item.setTotalQuantity(quantity.intValue());
+                        item.setAvailableQuantity(0);
+                        item.setStatus(UnitStatus.AVAILABLE);
+                        savedItem = itemRepository.save(item);
+                    }
 
                     // Handle Serial (ItemUnit)
                     String serial = null;
@@ -145,12 +169,8 @@ public class CsvDataLoader implements CommandLineRunner {
         }
 
         // Create flag file to prevent re-import
-        try {
-            seedFlag.createNewFile();
-            System.out.println("🚩 Data seeding flag created.");
-        } catch (Exception e) {
-            System.err.println("⚠️ Could not create seeding flag: " + e.getMessage());
-        }
+        // No need to create flag file anymore
+        System.out.println("🚩 Data seeding completed.");
 
         // Evict cache
         if (cacheManager.getCache("items") != null) {
@@ -159,6 +179,69 @@ public class CsvDataLoader implements CommandLineRunner {
         }
 
         System.out.println("✅ Full Data Sync Complete");
+    }
+
+    private void consolidateExistingItems() {
+        transactionTemplate.execute(status -> {
+            try {
+                System.out.println("🔍 Finding duplicate items for consolidation...");
+                List<Item> allItems = itemRepository.findAll();
+
+                Map<String, List<Item>> groups = new HashMap<>();
+                for (Item item : allItems) {
+                    String cat = item.getCategory() != null ? item.getCategory() : "";
+                    String brand = item.getBrand() != null ? item.getBrand() : "";
+                    String model = item.getModel() != null ? item.getModel() : "";
+                    String desc = item.getDescription() != null ? item.getDescription() : "";
+                    String uom = item.getUom() != null ? item.getUom() : "";
+
+                    String key = (cat + "|" + brand + "|" + model + "|" + desc + "|" + uom)
+                            .toLowerCase().trim();
+                    groups.computeIfAbsent(key, k -> new ArrayList<>()).add(item);
+                }
+
+                int mergedCount = 0;
+                for (Map.Entry<String, List<Item>> entry : groups.entrySet()) {
+                    List<Item> items = entry.getValue();
+                    if (items.size() > 1) {
+                        Item master = items.get(0);
+                        List<Long> subordinates = items.subList(1, items.size()).stream()
+                                .map(Item::getId)
+                                .collect(Collectors.toList());
+
+                        System.out.println("🔗 Merging " + subordinates.size() + " duplicates into Master: "
+                                + master.getName() + " (ID: " + master.getId() + ")");
+
+                        // 1. Relink EventItems
+                        eventItemRepository.migrateItem(subordinates, master);
+
+                        // 2. Relink ItemUnits
+                        itemUnitRepository.migrateItem(subordinates, master);
+
+                        // 3. Update Master Quantity
+                        int extraQty = items.subList(1, items.size()).stream()
+                                .mapToInt(i -> i.getTotalQuantity() != null ? i.getTotalQuantity() : 0)
+                                .sum();
+                        master.setTotalQuantity(
+                                (master.getTotalQuantity() != null ? master.getTotalQuantity() : 0) + extraQty);
+                        itemRepository.save(master);
+
+                        // 4. Delete Orphans
+                        itemRepository.deleteAllById(subordinates);
+                        mergedCount += subordinates.size();
+                    }
+                }
+                if (mergedCount > 0) {
+                    System.out.println("✅ Consolidation complete. Merged " + mergedCount + " duplicate records.");
+                } else {
+                    System.out.println("✨ No duplicates found. System is clean.");
+                }
+            } catch (Exception e) {
+                System.err.println("❌ Consolidation failed: " + e.getMessage());
+                e.printStackTrace();
+            }
+            return null;
+        });
     }
 
     private String detectCategoryFromFile(String file) {

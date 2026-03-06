@@ -49,7 +49,8 @@ public class UnifiedAvailabilityService {
 
                         int total = serials.size();
                         int available = (int) serials.stream()
-                                        .filter(s -> "AVAILABLE".equals(s.getStatus()))
+                                        .filter(s -> "AVAILABLE".equals(s.getStatus())
+                                                        || "BOOKED_SELF".equals(s.getStatus()))
                                         .count();
                         int inUse = (int) serials.stream()
                                         .filter(s -> "IN_USE".equals(s.getStatus()))

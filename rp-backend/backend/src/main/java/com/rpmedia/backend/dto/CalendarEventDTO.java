@@ -21,6 +21,7 @@ public class CalendarEventDTO {
   private Long ownerId; // = events.created_by (User) OR events.calendar_owner_id (CalendarOwner)
   private String ownerName; // join users.name OR calendar_owners.name
   private String ownerColorHex; // join users.calendar_color OR calendar_owners.color_hex
+  private String ownerRole; // join users.role (for role-based UI features)
   private List<String> allColors; // All participant colors (owner + managers) for gradient
   private String type; // จาก custom_fields.type
   private String location;

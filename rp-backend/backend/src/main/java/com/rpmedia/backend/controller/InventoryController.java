@@ -1,7 +1,6 @@
 package com.rpmedia.backend.controller;
 
 import com.rpmedia.backend.model.Item;
-import com.rpmedia.backend.repository.EventItemRepository;
 import com.rpmedia.backend.repository.ItemRepository;
 import com.rpmedia.backend.service.InventoryService;
 
@@ -9,7 +8,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.*;
 
@@ -21,45 +19,55 @@ public class InventoryController {
     @Autowired
     private ItemRepository itemRepository;
 
+    /**
+     * Endpoint: /api/inventory/availability?startDate=2025-11-06&endDate=2025-11-08
+     */
     @Autowired
-    private EventItemRepository eventItemRepository; // ✅ ใช้ชื่อให้ตรงกับ service
+    private com.rpmedia.backend.service.UnifiedAvailabilityService unifiedAvailabilityService;
 
     /**
      * Endpoint: /api/inventory/availability?startDate=2025-11-06&endDate=2025-11-08
      */
     @GetMapping("/availability")
     public List<Map<String, Object>> getAvailability(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @RequestParam("startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam("endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(value = "excludeEventId", required = false) Long excludeEventId) {
+
         List<Item> allItems = itemRepository.findAll();
-        List<Map<String, Object>> result = new ArrayList<>();
+        List<Long> itemIds = allItems.stream()
+                .filter(item -> {
+                    boolean hasBrand = item.getBrand() != null && !item.getBrand().trim().isEmpty();
+                    boolean hasModel = item.getModel() != null && !item.getModel().trim().isEmpty();
+                    boolean hasName = item.getName() != null && !item.getName().trim().isEmpty()
+                            && !item.getName().equalsIgnoreCase("Unknown Item");
+                    return hasBrand || hasModel || hasName;
+                })
+                .map(Item::getId)
+                .toList();
 
-        for (Item item : allItems) {
-            // ✅ ใช้ repo ที่ชื่อถูกต้อง และฟังก์ชัน sumAllocatedOverlap (ที่มีอยู่แล้วใน
-            // EventItemRepository)
-            Long allocated = eventItemRepository.sumAllocatedOverlap(
-                    item.getId(),
-                    null, // excludeEventId = null
-                    startDate,
-                    endDate);
+        var availabilityResults = unifiedAvailabilityService.computeBulk(itemIds, excludeEventId, startDate, endDate);
 
-            BigDecimal allocatedVal = BigDecimal.valueOf(allocated != null ? allocated : 0);
-            BigDecimal total = BigDecimal.valueOf(item.getTotalQuantity() != null ? item.getTotalQuantity() : 0);
-            BigDecimal available = total.subtract(allocatedVal);
-
+        return availabilityResults.stream().map(dto -> {
             Map<String, Object> row = new HashMap<>();
-            row.put("itemId", item.getId());
-            row.put("itemName", item.getName());
-            row.put("category", item.getCategory());
-            row.put("uom", item.getUom());
-            row.put("totalQuantity", total);
-            row.put("allocated", allocatedVal);
-            row.put("available", available.max(BigDecimal.ZERO)); // กันค่าติดลบ
+            row.put("itemId", dto.getItemId());
+            row.put("itemName", dto.getItemName());
 
-            result.add(row);
-        }
+            // Re-fetch item for category/brand/model/uom which aren't all in the DTO
+            Item item = itemRepository.findById(dto.getItemId()).orElse(null);
+            if (item != null) {
+                row.put("category", item.getCategory());
+                row.put("brand", item.getBrand());
+                row.put("model", item.getModel());
+                row.put("uom", item.getUom());
+            }
 
-        return result;
+            row.put("totalQuantity", dto.getTotal());
+            row.put("allocated", dto.getAllocated());
+            row.put("available", Math.max(0, dto.getAvailable()));
+
+            return row;
+        }).toList();
     }
 
     @Autowired

@@ -1,9 +1,11 @@
 package com.rpmedia.backend.repository;
 
 import com.rpmedia.backend.model.EventItem;
+import com.rpmedia.backend.model.Item;
 import com.rpmedia.backend.model.ItemStatus;
 import com.rpmedia.backend.model.OverbookStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -13,11 +15,15 @@ import java.util.Optional;
 
 public interface EventItemRepository extends JpaRepository<EventItem, Long> {
 
-  Optional<EventItem> findByEventIdAndItemId(Long eventId, Long itemId);
+  List<EventItem> findByEventIdAndItemId(Long eventId, Long itemId);
 
   boolean existsByEventIdAndItemId(Long eventId, Long itemId);
 
   List<EventItem> findByEventId(Long eventId);
+
+  @Modifying
+  @Query("update EventItem ei set ei.item = :newItem where ei.item.id in :oldItemIds")
+  void migrateItem(@Param("oldItemIds") List<Long> oldItemIds, @Param("newItem") Item newItem);
 
   // ==========================
   // Availability overlap sum
@@ -34,6 +40,19 @@ public interface EventItemRepository extends JpaRepository<EventItem, Long> {
   Long sumAllocatedOverlap(
       @Param("itemId") Long itemId,
       @Param("excludeEventId") Long excludeEventId,
+      @Param("fromDate") LocalDate fromDate,
+      @Param("toDate") LocalDate toDate);
+
+  @Query("""
+      select ei
+      from EventItem ei
+      where ei.item.id = :itemId
+        and ei.event.startDate <= :toDate
+        and ei.event.endDate >= :fromDate
+        and (ei.status is null or (ei.status <> 'CANCELLED' and ei.status <> 'RETURNED'))
+      """)
+  List<EventItem> findOverlappingUsage(
+      @Param("itemId") Long itemId,
       @Param("fromDate") LocalDate fromDate,
       @Param("toDate") LocalDate toDate);
 

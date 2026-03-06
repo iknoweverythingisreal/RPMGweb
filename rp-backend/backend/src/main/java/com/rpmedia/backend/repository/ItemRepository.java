@@ -39,7 +39,7 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
                 WHEN e.start_date <= :endDate
                  AND COALESCE(ei.return_date, e.end_date) >= :startDate
                  AND COALESCE(ei.status, 'CONFIRMED') <> 'CANCELLED'
-                THEN ei.requested_quantity
+                THEN ei.allocated_quantity
                 ELSE 0
               END
             ), 0),
@@ -66,7 +66,7 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
       Pageable pageable // Spring จะใส่ LIMIT/OFFSET ให้เอง
   );
 
-  @org.springframework.data.jpa.repository.Query(value = """
+  @org.springframework.data.jpa.repository.Query(nativeQuery = true, value = """
         SELECT GREATEST(
           i.total_quantity
           - COALESCE(SUM(
@@ -75,7 +75,7 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
                 AND e.start_date <= :endDate
                 AND COALESCE(ei.return_date, e.end_date) >= :startDate
                 AND COALESCE(ei.status,'CONFIRMED') <> 'CANCELLED'
-              THEN ei.requested_quantity ELSE 0 END
+              THEN ei.allocated_quantity ELSE 0 END
             ),0),
           0
         ) AS available
@@ -83,11 +83,15 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
         LEFT JOIN event_items ei ON ei.item_id=i.id
         LEFT JOIN events e ON e.id=ei.event_id
         WHERE i.id=:itemId
-      """, nativeQuery = true)
+      """)
   Integer availableForItem(
       @org.springframework.data.repository.query.Param("itemId") Long itemId,
       @org.springframework.data.repository.query.Param("eventId") Long eventId,
       @org.springframework.data.repository.query.Param("startDate") java.time.LocalDate startDate,
       @org.springframework.data.repository.query.Param("endDate") java.time.LocalDate endDate);
+
+  @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+  @org.springframework.data.jpa.repository.Query("SELECT i FROM Item i WHERE i.id = :id")
+  java.util.Optional<Item> findByIdWithLock(@org.springframework.data.repository.query.Param("id") Long id);
 
 }

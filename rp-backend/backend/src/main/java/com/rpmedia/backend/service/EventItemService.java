@@ -7,12 +7,15 @@ import com.rpmedia.backend.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import jakarta.persistence.EntityManager;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -27,6 +30,11 @@ public class EventItemService {
     private final EventHistoryService eventHistoryService;
     private final UnifiedAvailabilityService unifiedAvailabilityService;
     private final ObjectMapper objectMapper;
+    private final EntityManager entityManager;
+
+    private int nvl(Integer v) {
+        return v == null ? 0 : v;
+    }
 
     public List<EventItemDTO> getAllEventItems() {
         return eventItemRepository.findAll().stream()
@@ -70,13 +78,15 @@ public class EventItemService {
     }
 
     @Transactional
-    public void delete(Long id) {
-        eventItemRepository.findById(id).ifPresent(ei -> {
+    public EventItemDTO delete(Long id) {
+        return eventItemRepository.findById(id).map(ei -> {
             Long eventId = ei.getEvent().getId();
             String itemName = ei.getItem().getName();
+            EventItemDTO dto = toDto(ei);
             eventItemRepository.delete(ei);
             eventHistoryService.log(eventId, getCurrentUserId(), "ITEM_REMOVED", "Removed item: " + itemName);
-        });
+            return dto;
+        }).orElseThrow(() -> new RuntimeException("EventItem not found"));
     }
 
     public List<EventItem> findByOverbookStatus(OverbookStatus status) {
@@ -145,7 +155,7 @@ public class EventItemService {
 
         entity.setUnitPrice(dto.getUnitPrice() != null ? dto.getUnitPrice() : BigDecimal.ZERO);
         entity.setRateType(dto.getRateType() != null ? dto.getRateType() : "NONE");
-        entity.setLineTotal(entity.getUnitPrice().multiply(BigDecimal.valueOf(entity.getRequestedQuantity())));
+        entity.setLineTotal(entity.getUnitPrice().multiply(BigDecimal.valueOf(nvl(entity.getRequestedQuantity()))));
         entity.setStatus(ItemStatus.DRAFT);
         entity.setRemark(dto.getRemark());
         entity.setOverbookQty(0);
@@ -169,89 +179,40 @@ public class EventItemService {
                 .orElseThrow(() -> new RuntimeException("Event not found"));
 
         for (EventItemRequestDTO req : requests) {
+            // 🔹 CONCURRENCY: Lock the item to prevent race conditions during availability
+            // check/booking
+            Item item = itemRepository.findByIdWithLock(req.getItemId())
+                    .orElseThrow(() -> new RuntimeException("Item not found: " + req.getItemId()));
+
             // 🔹 Check availability (Phase 17: Support Overbooking)
             UnifiedAvailabilityDTO avail = unifiedAvailabilityService.compute(
                     req.getItemId(),
-                    eventId,
+                    null, // Include current event's existing bookings in "available" calculation
                     event.getStartDate(),
                     event.getEndDate());
 
-            int requestedQty = req.getRequestedQuantity();
+            int requestedQty = nvl(req.getRequestedQuantity());
             int available = avail.getAvailable();
-            int overbookQty = 0;
-            OverbookStatus overbookStatus = OverbookStatus.NONE;
-
-            if (available < requestedQty) {
-                overbookQty = requestedQty - available;
-                overbookStatus = OverbookStatus.PENDING;
-            }
-
-            Item item = itemRepository.findById(req.getItemId())
-                    .orElseThrow(() -> new RuntimeException("Item not found: " + req.getItemId()));
-
-            // 🔹 Check if item already exists in event
-            // Allow multiple entries if it's a SERVICE_ITEM (for external rentals)
-            boolean isServiceItem = "SERVICE_ITEM".equals(item.getDescription());
-            if (!isServiceItem && eventItemRepository.existsByEventIdAndItemId(eventId, req.getItemId())) {
-                System.out.println("[DEBUG] Item " + req.getItemId() + " already exists. Skipping.");
-                continue;
-            }
-
-            EventItem entity = new EventItem();
-            entity.setEvent(event);
-            entity.setItem(item);
 
             boolean hasSerial = req.getSerials() != null && !req.getSerials().isEmpty();
-            if (hasSerial) {
-                int sc = req.getSerials().size();
-                entity.setRequestedQuantity(sc);
-                entity.setAllocatedQuantity(sc);
-                entity.setSerials(objectMapper.valueToTree(req.getSerials()));
-            } else {
-                entity.setRequestedQuantity(requestedQty);
-                // Fix: Allocated quantity should be what's actually available, capped at
-                // requested
-                // For service items (External Rental), we don't allocate from internal stock
-                if (isServiceItem) {
-                    entity.setAllocatedQuantity(0);
-                } else {
-                    entity.setAllocatedQuantity(Math.min(requestedQty, Math.max(0, available)));
-                }
+
+            // 🔹 Calculate and Split Stock vs Rental
+            // If the incoming request explicitly marks this as a rental source, force it to
+            // be a rental
+            boolean forceRental = "RENT_EXTERNAL".equals(req.getSource());
+
+            int stockQty = forceRental ? 0 : Math.min(requestedQty, Math.max(0, available));
+            int rentalQty = requestedQty - stockQty;
+
+            // Try to handle Stock portion
+            if (stockQty > 0) {
+                handleSplitMerging(event, item, stockQty, stockQty, req, results, hasSerial);
             }
 
-            entity.setUnitPrice(req.getUnitPrice() != null ? req.getUnitPrice() : BigDecimal.ZERO);
-            entity.setRateType(req.getRateType() != null ? req.getRateType() : "NONE");
-            entity.setLineTotal(entity.getUnitPrice().multiply(BigDecimal.valueOf(entity.getRequestedQuantity())));
-            entity.setRemark(req.getRemark());
-
-            // Fix: Set status to PENDING_RENT for External Rentals to trigger approval flow
-            if (isServiceItem) {
-                entity.setStatus(ItemStatus.PENDING_RENT);
-                entity.setSource("RENT_EXTERNAL");
-            } else {
-                entity.setStatus(ItemStatus.CONFIRMED);
+            // Try to handle Rental/Shortage portion
+            if (rentalQty > 0) {
+                handleSplitMerging(event, item, rentalQty, 0, req, results, false); // No serials for shortages
             }
-
-            entity.setOverbookQty(overbookQty);
-            entity.setOverbookStatus(overbookStatus);
-            entity.setOverbookNote(req.getOverbookNote());
-            entity.setCreatedAt(LocalDateTime.now());
-            entity.setUpdatedAt(LocalDateTime.now());
-
-            EventItem saved = eventItemRepository.save(entity);
-            if (hasSerial) {
-                createEventItemUnits(saved, req.getSerials());
-            }
-
-            // Log item addition using independent transaction
-            try {
-                eventHistoryService.log(eventId, getCurrentUserId(), "ITEM_ADDED",
-                        "Added item: " + saved.getItem().getName() + " (Qty: " + saved.getRequestedQuantity() + ")");
-            } catch (Exception e) {
-                System.err.println("⚠ Failed to log item addition: " + e.getMessage());
-            }
-
-            results.add(toDto(saved));
         }
 
         if (!results.isEmpty()) {
@@ -273,7 +234,7 @@ public class EventItemService {
     public void updateQuantity(Long eventItemId, int newQuantity) {
         EventItem eventItem = eventItemRepository.findById(eventItemId)
                 .orElseThrow(() -> new RuntimeException("EventItem not found"));
-        int oldQuantity = eventItem.getRequestedQuantity();
+        int oldQuantity = nvl(eventItem.getRequestedQuantity());
         eventItem.setRequestedQuantity(newQuantity);
         eventItem.setAllocatedQuantity(newQuantity);
         eventItem.setUpdatedAt(LocalDateTime.now());
@@ -317,18 +278,44 @@ public class EventItemService {
 
     @Transactional
     public void requestRentExternal(Long eventId, Long requesterId, Long itemId, Double qty, String reason) {
-        EventItem ei = eventItemRepository.findByEventIdAndItemId(eventId, itemId).orElseGet(() -> {
-            EventItem newItem = new EventItem();
-            newItem.setEvent(eventRepository.findById(eventId).orElseThrow());
-            newItem.setItem(itemRepository.findById(itemId).orElseThrow());
-            newItem.setRequestedQuantity(qty.intValue());
-            newItem.setAllocatedQuantity(0);
-            newItem.setUnitPrice(BigDecimal.ZERO);
-            newItem.setRateType("NONE");
-            newItem.setLineTotal(BigDecimal.ZERO);
-            newItem.setCreatedAt(LocalDateTime.now());
-            return newItem;
-        });
+        // Production Fix: Find "External Rental" item if itemId is 0 (generic)
+        // Fallback: If not found, use any SERVICE item.
+        Item item = null;
+        if (itemId != null && itemId > 0) {
+            item = itemRepository.findById(itemId).orElse(null);
+        }
+
+        if (item == null) {
+            item = itemRepository.findByName("External Rental").orElse(null);
+            if (item == null) {
+                // Try case-insensitive matching if exact name fails
+                List<Item> matches = itemRepository.findByNameContainingIgnoreCase("External Rental");
+                if (!matches.isEmpty())
+                    item = matches.get(0);
+            }
+            if (item == null) {
+                // Try by category
+                List<Item> rentals = itemRepository.findByCategoryIgnoreCase("RENTAL");
+                if (!rentals.isEmpty())
+                    item = rentals.get(0);
+            }
+            // Last resort: find ANY item to attach to avoid 500 error
+            if (item == null) {
+                item = itemRepository.findAll().stream().findFirst()
+                        .orElseThrow(() -> new RuntimeException(
+                                "System Error: No strict 'External Rental' item found. Please create one."));
+            }
+        }
+
+        EventItem ei = new EventItem();
+        ei.setEvent(eventRepository.findById(eventId).orElseThrow(() -> new RuntimeException("Event not found")));
+        ei.setItem(item);
+        ei.setRequestedQuantity(qty.intValue());
+        ei.setAllocatedQuantity(0);
+        ei.setUnitPrice(BigDecimal.ZERO);
+        ei.setRateType("NONE");
+        ei.setLineTotal(BigDecimal.ZERO);
+        ei.setCreatedAt(LocalDateTime.now());
 
         ei.setSource("RENT_EXTERNAL");
         ei.setStatus(ItemStatus.PENDING_RENT);
@@ -337,7 +324,7 @@ public class EventItemService {
         eventItemRepository.save(ei);
 
         eventHistoryService.log(eventId, requesterId, "RENT_REQUEST",
-                "Request rent for item: " + ei.getItem().getName() + " (Qty: " + qty + ")");
+                "Request rent: " + reason + " (Qty: " + qty + ")");
     }
 
     @Transactional
@@ -348,6 +335,15 @@ public class EventItemService {
                 ei.setRemark(note);
                 ei.setConfirmedBy(approverId);
                 ei.setUpdatedAt(LocalDateTime.now());
+
+                // 🔹 Unify Overbook Status if this was an auto-rental from overbooking
+                if (ei.getOverbookQty() != null && ei.getOverbookQty() > 0) {
+                    ei.setOverbookStatus(approved ? OverbookStatus.APPROVED : OverbookStatus.REJECTED);
+                    ei.setOverbookApprovedBy(approverId);
+                    ei.setOverbookApprovedAt(LocalDateTime.now());
+                    ei.setOverbookNote(note);
+                }
+
                 eventItemRepository.save(ei);
                 eventHistoryService.log(ei.getEvent().getId(), approverId, approved ? "RENT_APPROVED" : "RENT_REJECTED",
                         "Rent " + (approved ? "approved" : "rejected") + " for " + ei.getItem().getName() + ". Note: "
@@ -358,29 +354,57 @@ public class EventItemService {
 
     @Transactional
     public int confirmEventItems(Long eventId, Long confirmedBy) {
+        System.out.println(">>> [CONFIRM_BOOKING] EventID=" + eventId + ", By=" + confirmedBy);
         var items = eventItemRepository.findByEventId(eventId);
-        for (var ei : items) {
-            if (ei.getStatus() == ItemStatus.DRAFT || ei.getStatus() == ItemStatus.REQUESTED) {
-                ei.setStatus(ItemStatus.CONFIRMED);
-                ei.setConfirmedBy(confirmedBy);
+
+        try {
+            for (var ei : items) {
+                if (ei.getStatus() == ItemStatus.DRAFT || ei.getStatus() == ItemStatus.REQUESTED) {
+                    ei.setStatus(ItemStatus.CONFIRMED);
+                    ei.setConfirmedBy(confirmedBy);
+                    ei.setUpdatedAt(LocalDateTime.now());
+                }
             }
+
+            System.out.println("  [SAVE] Saving " + items.size() + " confirmed items...");
+            eventItemRepository.saveAll(items);
+
+            System.out.println("  [FLUSH] Explicitly flushing to catch DB errors...");
+            entityManager.flush();
+
+            System.out.println("  [LOG] Adding history entry...");
+            eventHistoryService.log(eventId, confirmedBy, "CONFIRM", "Manager confirmed all items");
+
+            return items.size();
+        } catch (Exception e) {
+            System.err.println("❌ ERROR during confirmEventItems: " + e.getMessage());
+            e.printStackTrace();
+
+            // Detailed message for frontend
+            String detail = e.getMessage();
+            if (detail != null && detail.contains("column")) {
+                throw new RuntimeException("Database schema mismatch: " + detail);
+            }
+            throw new RuntimeException("Finalize failed: " + detail);
         }
-        eventItemRepository.saveAll(items);
-        eventHistoryService.log(eventId, confirmedBy, "CONFIRM", "Manager confirmed all items");
-        return items.size();
     }
 
     @Transactional
     public EventItem reserveItem(Long eventId, Long itemId, int qty, Long userId) {
-        EventItem ei = eventItemRepository.findByEventIdAndItemId(eventId, itemId).orElseGet(() -> {
-            EventItem newItem = new EventItem();
-            newItem.setEvent(new Event(eventId));
-            newItem.setItem(new Item(itemId));
-            return newItem;
-        });
+        List<EventItem> list = eventItemRepository.findByEventIdAndItemId(eventId, itemId);
+        EventItem ei = list.isEmpty() ? null : list.get(0);
+
+        if (ei == null) {
+            ei = new EventItem();
+            ei.setEvent(new Event(eventId));
+            ei.setItem(itemRepository.findById(itemId).orElseThrow());
+        }
         ei.setRequestedQuantity(qty);
-        ei.setAllocatedQuantity(qty);
-        ei.setStatus(ItemStatus.REQUESTED);
+        ei.setAllocatedQuantity(0); // Production Fix: Advance Booking should not block stock
+        ei.setOverbookQty(qty);
+        ei.setOverbookStatus(OverbookStatus.APPROVED);
+        ei.setStatus(ItemStatus.PENDING_RENT);
+        ei.setSource("RENT_EXTERNAL");
         EventItem saved = eventItemRepository.save(ei);
         eventHistoryService.log(eventId, userId, "RESERVE_ITEM", "Reserved " + qty + " of item #" + itemId);
         return saved;
@@ -439,6 +463,15 @@ public class EventItemService {
 
     public EventItemDTO toDto(EventItem ei) {
         String itemName = ei.getItem().getName();
+
+        // 🔹 If External Rental, use Remark as Name if generic name is detected
+        if ("RENT_EXTERNAL".equals(ei.getSource()) && ei.getRemark() != null && !ei.getRemark().isEmpty()) {
+            String lowerName = (itemName != null) ? itemName.toLowerCase() : "";
+            if (lowerName.contains("rental") || lowerName.contains("service") || lowerName.contains("external")) {
+                itemName = ei.getRemark(); // Use the custom description (Brand Model etc)
+            }
+        }
+
         if (itemName == null || itemName.trim().isEmpty()) {
             itemName = ei.getItem().getModel();
         }
@@ -453,24 +486,30 @@ public class EventItemService {
                 .id(ei.getId())
                 .eventId(ei.getEvent().getId())
                 .eventName(ei.getEvent().getTitle())
+                .eventStartDate(ei.getEvent().getStartDate() != null ? ei.getEvent().getStartDate().toString() : null)
+                .eventEndDate(ei.getEvent().getEndDate() != null ? ei.getEvent().getEndDate().toString() : null)
+                .location(ei.getEvent().getLocation())
                 .itemId(ei.getItem().getId())
                 .itemName(itemName)
                 .category(ei.getItem().getCategory())
                 .brand(ei.getItem().getBrand())
                 .model(ei.getItem().getModel())
                 .uom(ei.getItem().getUom())
-                .requestedQuantity(BigDecimal.valueOf(ei.getRequestedQuantity()))
-                .allocatedQuantity(BigDecimal.valueOf(ei.getAllocatedQuantity()))
+                .requestedQuantity(BigDecimal.valueOf(nvl(ei.getRequestedQuantity())))
+                .allocatedQuantity(BigDecimal.valueOf(nvl(ei.getAllocatedQuantity())))
                 .unitPrice(ei.getUnitPrice())
                 .rateType(ei.getRateType())
                 .lineTotal(ei.getLineTotal())
                 .status(ei.getStatus().name())
-                .overbookQty(BigDecimal.valueOf(ei.getOverbookQty()))
+                .overbookQty(BigDecimal.valueOf(nvl(ei.getOverbookQty())))
                 .overbookStatus(ei.getOverbookStatus().name())
                 .overbookNote(ei.getOverbookNote())
                 .overbookApprovedBy(ei.getOverbookApprovedBy())
                 .overbookApprovedAt(ei.getOverbookApprovedAt())
                 .remark(ei.getRemark())
+                .source(ei.getSource())
+                .room(ei.getMetadata() != null && ei.getMetadata().has("room") ? ei.getMetadata().get("room").asText()
+                        : null)
                 .build();
     }
 
@@ -496,5 +535,422 @@ public class EventItemService {
         List<ItemUnit> foundUnits = itemUnitRepository.findValidSerials(dto.getItemId(), serials);
         if (foundUnits.size() != serials.size())
             throw new IllegalArgumentException("Invalid serials for item");
+    }
+
+    @Transactional
+    public void swapItems(SwapItemRequestDTO request) {
+        // 1. Get Source Event Item
+        EventItem sourceEI = eventItemRepository.findById(request.getSourceEventItemId())
+                .orElseThrow(() -> new RuntimeException("Source EventItem not found"));
+        Event sourceEvent = sourceEI.getEvent();
+        Item sourceItem = sourceEI.getItem();
+
+        // 2. Get Replacement Item
+        Item targetItem = itemRepository.findById(request.getTargetItemId())
+                .orElseThrow(() -> new RuntimeException("Target Item not found"));
+
+        // 3. Category/Type Validation
+        // Relaxed to Category check. Ideally strictly matched.
+        if (!sourceItem.getCategory().equalsIgnoreCase(targetItem.getCategory())) {
+            throw new IllegalArgumentException(
+                    "Category Mismatch: " + sourceItem.getCategory() + " vs " + targetItem.getCategory());
+        }
+
+        System.out.println("Processing Swap: " + sourceItem.getName() + " -> " + targetItem.getName());
+
+        // 4. Logic Branching
+        if (request.getTargetEventId() != null) {
+            // === SWAP WITH EVENT ===
+            Event targetEvent = eventRepository.findById(request.getTargetEventId())
+                    .orElseThrow(() -> new RuntimeException("Target Event not found"));
+
+            EventItem targetEI;
+            if (request.getTargetEventItemId() != null) {
+                targetEI = eventItemRepository.findById(request.getTargetEventItemId())
+                        .orElseThrow(() -> new RuntimeException("Target Event Item record not found"));
+            } else {
+                targetEI = eventItemRepository.findByEventIdAndItemId(targetEvent.getId(), targetItem.getId())
+                        .stream().findFirst().orElse(null);
+                if (targetEI == null) {
+                    throw new RuntimeException("Target Event does not have the specified item to swap");
+                }
+            }
+
+            // Determine Qty to swap
+            int requestedSwapQty = (request.getQuantity() != null && request.getQuantity() > 0)
+                    ? request.getQuantity()
+                    : nvl(sourceEI.getRequestedQuantity());
+
+            // Cap at available in source/target
+            int actualSwapQtyFromSource = Math.min(requestedSwapQty, nvl(sourceEI.getRequestedQuantity()));
+            int actualSwapQtyFromTarget = Math.min(requestedSwapQty, nvl(targetEI.getRequestedQuantity()));
+
+            // NEW: Calculate allocations to move before objects are modified/deleted
+            int allocToMoveFromSource = Math.min(actualSwapQtyFromSource, nvl(sourceEI.getAllocatedQuantity()));
+            int allocToMoveFromTarget = Math.min(actualSwapQtyFromTarget, nvl(targetEI.getAllocatedQuantity()));
+
+            // EXECUTE SWAP
+            // 1. Handle Source (Event A loses the old item)
+            if (actualSwapQtyFromSource >= nvl(sourceEI.getRequestedQuantity())) {
+                sourceEvent.getEventItems().remove(sourceEI);
+                eventItemUnitRepository.deleteByEventItemId(sourceEI.getId());
+                eventItemRepository.delete(sourceEI);
+            } else {
+                sourceEI.setRequestedQuantity(nvl(sourceEI.getRequestedQuantity()) - actualSwapQtyFromSource);
+                sourceEI.setAllocatedQuantity(
+                        Math.max(0, nvl(sourceEI.getAllocatedQuantity()) - actualSwapQtyFromSource));
+                eventItemRepository.save(sourceEI);
+            }
+
+            // 2. Handle Target (Event B loses the new item for A)
+            if (actualSwapQtyFromTarget >= nvl(targetEI.getRequestedQuantity())) {
+                targetEvent.getEventItems().remove(targetEI);
+                eventItemUnitRepository.deleteByEventItemId(targetEI.getId());
+                eventItemRepository.delete(targetEI);
+            } else {
+                targetEI.setRequestedQuantity(nvl(targetEI.getRequestedQuantity()) - actualSwapQtyFromTarget);
+                targetEI.setAllocatedQuantity(
+                        Math.max(0, nvl(targetEI.getAllocatedQuantity()) - actualSwapQtyFromTarget));
+                eventItemRepository.save(targetEI);
+            }
+
+            entityManager.flush();
+
+            // 3. Create results
+            // Source Event A ALWAYS gets the Target Item
+            createInternalEventItem(sourceEvent, targetItem, actualSwapQtyFromTarget, allocToMoveFromTarget,
+                    "Swapped in " + actualSwapQtyFromTarget + " from Event " + targetEvent.getTitle());
+
+            // Target Event B ONLY gets the Source Item if it's a MUTUAL swap
+            boolean isMutual = "MUTUAL".equalsIgnoreCase(request.getSwapMode()) || request.getSwapMode() == null;
+            if (isMutual) {
+                createInternalEventItem(targetEvent, sourceItem, actualSwapQtyFromSource, allocToMoveFromSource,
+                        "Swapped in " + actualSwapQtyFromSource + " from Event " + sourceEvent.getTitle());
+            }
+
+            // LOG
+            Map<String, Object> logSourceData = new HashMap<>();
+            logSourceData.put("originalItemName", sourceItem.getName());
+            logSourceData.put("newItemName", targetItem.getName());
+            logSourceData.put("quantity", actualSwapQtyFromTarget);
+            logSourceData.put("reason",
+                    (isMutual ? "Mutual Swap" : "One-way Move") + " with Event " + targetEvent.getTitle());
+            logSourceData.put("source", "EVENT");
+            logSourceData.put("targetEventId", targetEvent.getId());
+            EventHistory h1 = eventHistoryService.logChange(sourceEvent.getId(), "ITEM_SUBSTITUTION", logSourceData);
+            h1.setAction("ITEM_SUBSTITUTION");
+            eventHistoryService.log(sourceEvent.getId(), request.getUserId(), "ITEM_SUBSTITUTION", h1.getNote());
+
+            if (isMutual) {
+                Map<String, Object> logTargetData = new HashMap<>();
+                logTargetData.put("originalItemName", targetItem.getName());
+                logTargetData.put("newItemName", sourceItem.getName());
+                logTargetData.put("quantity", actualSwapQtyFromSource);
+                logTargetData.put("reason", "Mutual Swap with Event " + sourceEvent.getTitle());
+                logTargetData.put("source", "EVENT");
+                logTargetData.put("targetEventId", sourceEvent.getId());
+                EventHistory h2 = eventHistoryService.logChange(targetEvent.getId(), "ITEM_SUBSTITUTION",
+                        logTargetData);
+                h2.setAction("ITEM_SUBSTITUTION");
+                eventHistoryService.log(targetEvent.getId(), request.getUserId(), "ITEM_SUBSTITUTION", h2.getNote());
+            }
+        } else {
+            // === SWAP WITH STORAGE ===
+            int requestedSwapQty = (request.getQuantity() != null && request.getQuantity() > 0)
+                    ? request.getQuantity()
+                    : nvl(sourceEI.getRequestedQuantity());
+
+            int actualSwapQty = Math.min(requestedSwapQty, nvl(sourceEI.getRequestedQuantity()));
+
+            // Execute
+            if (actualSwapQty >= nvl(sourceEI.getRequestedQuantity())) {
+                sourceEvent.getEventItems().remove(sourceEI);
+                eventItemUnitRepository.deleteByEventItemId(sourceEI.getId());
+                eventItemRepository.delete(sourceEI);
+            } else {
+                sourceEI.setRequestedQuantity(nvl(sourceEI.getRequestedQuantity()) - actualSwapQty);
+                sourceEI.setAllocatedQuantity(Math.max(0, nvl(sourceEI.getAllocatedQuantity()) - actualSwapQty));
+                eventItemRepository.save(sourceEI);
+            }
+
+            entityManager.flush();
+
+            createInternalEventItem(sourceEvent, targetItem, actualSwapQty, actualSwapQty,
+                    "Replaced " + actualSwapQty + "x " + sourceItem.getName() + ". Reason: " + request.getReason());
+
+            // Log
+            Map<String, Object> logData = new HashMap<>();
+            logData.put("originalItemName", sourceItem.getName());
+            logData.put("newItemName", targetItem.getName());
+            logData.put("quantity", actualSwapQty);
+            logData.put("reason", request.getReason());
+            logData.put("source", (request.getTargetType() != null) ? request.getTargetType() : "STORAGE");
+
+            EventHistory h = eventHistoryService.logChange(sourceEvent.getId(), "ITEM_SUBSTITUTION", logData);
+            h.setAction("ITEM_SUBSTITUTION");
+            h.setNote("Substitution: " + actualSwapQty + "x " + sourceItem.getName() + " -> " + targetItem.getName());
+            eventHistoryService.log(sourceEvent.getId(), request.getUserId(), "ITEM_SUBSTITUTION", h.getNote());
+        }
+    }
+
+    private void createInternalEventItem(Event event, Item item, int qty, int allocatedQty, String remark) {
+        // Production Fix: Merge with existing item if it already exists in the event
+        List<EventItem> list = eventItemRepository.findByEventIdAndItemId(event.getId(), item.getId());
+
+        boolean incomingIsRental = (allocatedQty == 0);
+
+        EventItem existing = list.stream()
+                .filter(ei -> ei.getMetadata() == null || !ei.getMetadata().has("room"))
+                .filter(ei -> {
+                    boolean existingIsRental = (nvl(ei.getAllocatedQuantity()) == 0);
+                    return incomingIsRental == existingIsRental;
+                })
+                .findFirst().orElse(null);
+
+        if (existing != null) {
+            existing.setRequestedQuantity(nvl(existing.getRequestedQuantity()) + qty);
+            existing.setAllocatedQuantity(nvl(existing.getAllocatedQuantity()) + allocatedQty);
+            existing.setRemark(existing.getRemark() + " | " + remark);
+            existing.setUpdatedAt(LocalDateTime.now());
+            eventItemRepository.save(existing);
+            return;
+        }
+
+        EventItem entity = new EventItem();
+        entity.setEvent(event);
+        entity.setItem(item);
+        entity.setRequestedQuantity(qty);
+        entity.setAllocatedQuantity(allocatedQty);
+        entity.setUnitPrice(BigDecimal.ZERO);
+        entity.setRateType("NONE");
+        entity.setLineTotal(BigDecimal.ZERO);
+        entity.setStatus(ItemStatus.CONFIRMED);
+        entity.setRemark(remark);
+        entity.setCreatedAt(LocalDateTime.now());
+        entity.setUpdatedAt(LocalDateTime.now());
+        entity.setOverbookStatus(OverbookStatus.NONE);
+        eventItemRepository.save(entity);
+    }
+
+    @Transactional
+    public void assignToRoom(Long eventItemId, String roomName, Integer quantity) {
+        System.out.println(">>> [ROOM_ASSIGN] ID=" + eventItemId + ", Room=" + roomName + ", Qty=" + quantity);
+
+        EventItem source = eventItemRepository.findById(eventItemId)
+                .orElseThrow(() -> new RuntimeException("EventItem not found"));
+
+        int currentQty = nvl(source.getRequestedQuantity());
+        if (quantity > currentQty) {
+            throw new IllegalArgumentException("Quantity (" + quantity + ") exceeds available (" + currentQty + ")");
+        }
+
+        boolean isUnassigning = (roomName == null || roomName.trim().isEmpty()
+                || "Unassigned".equalsIgnoreCase(roomName.trim()));
+
+        BigDecimal unitPrice = source.getUnitPrice() != null ? source.getUnitPrice() : BigDecimal.ZERO;
+
+        if (quantity < currentQty) {
+            // --- SPLIT PARTIAL QUANTITY ---
+            System.out.println("  [SPLIT] Moving partial qty: " + quantity + "/" + currentQty);
+
+            // 1. Calculate how much of 'quantity' is Stock vs Rental
+            int currentAlloc = nvl(source.getAllocatedQuantity());
+            // STOCK PRIORITY: Consume stock first
+            int allocatedToMove = Math.min(quantity, currentAlloc);
+            int quantityToMove = quantity;
+
+            // 2. Adjust source
+            source.setRequestedQuantity(currentQty - quantityToMove);
+            source.setAllocatedQuantity(currentAlloc - allocatedToMove);
+            source.setLineTotal(unitPrice.multiply(BigDecimal.valueOf(source.getRequestedQuantity())));
+            source.setUpdatedAt(LocalDateTime.now());
+            eventItemRepository.save(source);
+
+            // 3. Move the 'quantityToMove' (may need another split if it's mixed)
+            processMove(source.getEvent(), source.getItem(), quantityToMove, allocatedToMove, roomName,
+                    source.getStatus(), unitPrice, source.getRateType(), "Unassigned from room (split)");
+
+        } else {
+            // --- MOVE ENTIRE RECORD ---
+            System.out.println("  [MOVE] Moving entire record to: " + (isUnassigning ? "Unassigned" : roomName));
+
+            int currentAlloc = nvl(source.getAllocatedQuantity());
+
+            if (isUnassigning) {
+                // Return to unassigned pool (merging handles purely stock or purely rental)
+                createInternalEventItem(source.getEvent(), source.getItem(), currentQty, currentAlloc,
+                        "Unassigned from room (entire)");
+                eventItemRepository.delete(source);
+            } else {
+                // Moving to a room.
+                // CRITICAL: If source is mixed (0 < alloc < req), we MUST split it into pure
+                // Stock and pure Rental records.
+                if (currentAlloc > 0 && currentAlloc < currentQty) {
+                    System.out.println(
+                            "  [AUTO-SPLIT] Mixed record detected. Splitting into Stock and Rental before room assignment.");
+
+                    // Create Stock portion in room
+                    processMove(source.getEvent(), source.getItem(), currentAlloc, currentAlloc, roomName,
+                            source.getStatus(), unitPrice, source.getRateType(), "Stock move");
+
+                    // Create Rental portion in room
+                    processMove(source.getEvent(), source.getItem(), currentQty - currentAlloc, 0, roomName,
+                            source.getStatus(), unitPrice, source.getRateType(), "Rental move");
+
+                    eventItemRepository.delete(source);
+                } else {
+                    // Pure record (either all Stock or all Rental)
+                    processMove(source.getEvent(), source.getItem(), currentQty, currentAlloc, roomName,
+                            source.getStatus(), unitPrice, source.getRateType(), "Pure move");
+                    eventItemRepository.delete(source);
+                }
+            }
+        }
+    }
+
+    private void processMove(Event event, Item item, int qty, int alloc, String roomName, ItemStatus status,
+            BigDecimal unitPrice, String rateType, String remark) {
+        boolean isUnassigning = (roomName == null || roomName.trim().isEmpty()
+                || "Unassigned".equalsIgnoreCase(roomName.trim()));
+
+        if (isUnassigning) {
+            createInternalEventItem(event, item, qty, alloc, remark);
+            return;
+        }
+
+        String targetRoom = roomName.trim();
+        boolean incomingIsRental = (alloc == 0);
+
+        // Find compatible target: Same room AND same allocation status (Stock vs
+        // Rental)
+        List<EventItem> targetList = eventItemRepository.findByEventIdAndItemId(event.getId(), item.getId());
+        EventItem target = targetList.stream()
+                .filter(ei -> ei.getMetadata() != null && ei.getMetadata().has("room")
+                        && targetRoom.equalsIgnoreCase(ei.getMetadata().get("room").asText()))
+                .filter(ei -> {
+                    boolean targetIsRental = (nvl(ei.getAllocatedQuantity()) == 0);
+                    return incomingIsRental == targetIsRental;
+                })
+                .findFirst().orElse(null);
+
+        if (target != null) {
+            target.setRequestedQuantity(nvl(target.getRequestedQuantity()) + qty);
+            target.setAllocatedQuantity(nvl(target.getAllocatedQuantity()) + alloc);
+            target.setLineTotal(unitPrice.multiply(BigDecimal.valueOf(target.getRequestedQuantity())));
+            target.setUpdatedAt(LocalDateTime.now());
+            eventItemRepository.save(target);
+        } else {
+            EventItem newRecord = new EventItem();
+            newRecord.setEvent(event);
+            newRecord.setItem(item);
+            newRecord.setRequestedQuantity(qty);
+            newRecord.setAllocatedQuantity(alloc);
+            newRecord.setUnitPrice(unitPrice);
+            newRecord.setRateType(rateType != null ? rateType : "fixed");
+            newRecord.setLineTotal(unitPrice.multiply(BigDecimal.valueOf(qty)));
+            newRecord.setStatus(status);
+            newRecord.setCreatedAt(LocalDateTime.now());
+            newRecord.setUpdatedAt(LocalDateTime.now());
+
+            var meta = objectMapper.createObjectNode();
+            meta.put("room", targetRoom);
+            newRecord.setMetadata(meta);
+
+            eventItemRepository.save(newRecord);
+        }
+    }
+
+    @Transactional
+    public void deleteRoomFromEvent(Long eventId, String roomName) {
+        // 1. Move all items in this room to Unassigned
+        List<EventItem> roomItems = eventItemRepository.findByEventId(eventId).stream()
+                .filter(ei -> ei.getMetadata() != null && ei.getMetadata().has("room")
+                        && roomName.equalsIgnoreCase(ei.getMetadata().get("room").asText()))
+                .toList();
+
+        for (EventItem ei : roomItems) {
+            // Unassign each
+            assignToRoom(ei.getId(), "Unassigned", nvl(ei.getRequestedQuantity()));
+        }
+
+        // 2. Remove room from Event customFields
+        eventRepository.findById(eventId).ifPresent(event -> {
+            var fields = event.getCustomFields();
+            if (fields != null && fields.containsKey("rooms")) {
+                Object roomsObj = fields.get("rooms");
+                if (roomsObj instanceof List) {
+                    List<String> rooms = new ArrayList<>((List<String>) roomsObj);
+                    rooms.removeIf(r -> r.equalsIgnoreCase(roomName));
+                    fields.put("rooms", rooms);
+                    event.setCustomFields(fields);
+                    eventRepository.save(event);
+                }
+            }
+        });
+    }
+
+    private void handleSplitMerging(Event event, Item item, int reqQty, int allocQty, EventItemRequestDTO req,
+            List<EventItemDTO> results, boolean hasSerial) {
+        boolean incomingIsRental = (allocQty == 0);
+
+        // Find compatible unassigned record for merging
+        List<EventItem> existingList = eventItemRepository.findByEventIdAndItemId(event.getId(), item.getId());
+        EventItem existing = existingList.stream()
+                .filter(ei -> ei.getMetadata() == null || !ei.getMetadata().has("room"))
+                .filter(ei -> {
+                    boolean existingIsRental = (nvl(ei.getAllocatedQuantity()) == 0);
+                    return incomingIsRental == existingIsRental;
+                })
+                .findFirst().orElse(null);
+
+        if (existing != null) {
+            existing.setRequestedQuantity(nvl(existing.getRequestedQuantity()) + reqQty);
+            existing.setAllocatedQuantity(nvl(existing.getAllocatedQuantity()) + allocQty);
+            existing.setUpdatedAt(LocalDateTime.now());
+
+            if (incomingIsRental) {
+                existing.setSource("RENT_EXTERNAL");
+                if (existing.getStatus() == ItemStatus.CONFIRMED || existing.getStatus() == ItemStatus.DRAFT
+                        || existing.getStatus() == ItemStatus.REQUESTED) {
+                    existing.setStatus(ItemStatus.PENDING_RENT);
+                }
+                existing.setOverbookQty(existing.getRequestedQuantity());
+            }
+
+            EventItem merged = eventItemRepository.save(existing);
+            results.add(toDto(merged));
+            return;
+        }
+
+        // Create new distinct record
+        EventItem entity = new EventItem();
+        entity.setEvent(event);
+        entity.setItem(item);
+        entity.setRequestedQuantity(reqQty);
+        entity.setAllocatedQuantity(allocQty);
+        entity.setUnitPrice(req.getUnitPrice() != null ? req.getUnitPrice() : BigDecimal.ZERO);
+        entity.setRateType(req.getRateType() != null ? req.getRateType() : "NONE");
+        entity.setLineTotal(entity.getUnitPrice().multiply(BigDecimal.valueOf(reqQty)));
+        entity.setRemark(req.getRemark());
+        entity.setStatus(incomingIsRental ? ItemStatus.PENDING_RENT : ItemStatus.CONFIRMED);
+        entity.setCreatedAt(LocalDateTime.now());
+        entity.setUpdatedAt(LocalDateTime.now());
+
+        if (incomingIsRental) {
+            entity.setSource("RENT_EXTERNAL");
+            entity.setOverbookQty(reqQty);
+            entity.setOverbookStatus(
+                    Boolean.TRUE.equals(req.getAutoApprove()) ? OverbookStatus.APPROVED : OverbookStatus.PENDING);
+        } else {
+            entity.setOverbookQty(0);
+            entity.setOverbookStatus(OverbookStatus.NONE);
+        }
+
+        if (hasSerial && req.getSerials() != null) {
+            entity.setSerials(objectMapper.valueToTree(req.getSerials()));
+        }
+
+        EventItem saved = eventItemRepository.save(entity);
+        results.add(toDto(saved));
     }
 }

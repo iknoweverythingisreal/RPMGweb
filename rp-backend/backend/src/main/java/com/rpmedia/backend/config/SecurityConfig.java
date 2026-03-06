@@ -94,8 +94,8 @@ public class SecurityConfig {
                         // General event access
                         .requestMatchers("/api/events/**").authenticated()
 
-                        // Other APIs allow
-                        .anyRequest().permitAll())
+                        // Other APIs
+                        .anyRequest().authenticated())
 
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(
                         jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))

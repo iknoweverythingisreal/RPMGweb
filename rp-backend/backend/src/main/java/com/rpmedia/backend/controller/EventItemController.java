@@ -3,6 +3,7 @@ package com.rpmedia.backend.controller;
 import com.rpmedia.backend.dto.BulkEventItemResponse;
 import com.rpmedia.backend.dto.EventItemDTO;
 import com.rpmedia.backend.dto.EventItemRequestDTO;
+import com.rpmedia.backend.dto.SwapItemRequestDTO;
 import com.rpmedia.backend.service.EventItemService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -66,9 +67,9 @@ public class EventItemController {
 
     @DeleteMapping("/{id}")
     @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
-    public ResponseEntity<Void> deleteEventItem(@PathVariable("id") Long id) {
-        eventItemService.delete(id);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<EventItemDTO> deleteEventItem(@PathVariable("id") Long id) {
+        EventItemDTO deleted = eventItemService.delete(id);
+        return ResponseEntity.ok(deleted);
     }
 
     // ==================== MVP: Update Quantity ====================
@@ -155,10 +156,10 @@ public class EventItemController {
     /** 🔹 Manager - อนุมัติหรือปฏิเสธการเช่า */
     @PutMapping("/approve-rent/{eventItemId}")
     public ResponseEntity<?> approveRent(
-            @PathVariable Long eventItemId,
-            @RequestParam Long approverId,
-            @RequestParam boolean approved,
-            @RequestParam(required = false) String note) {
+            @PathVariable("eventItemId") Long eventItemId,
+            @RequestParam("approverId") Long approverId,
+            @RequestParam("approved") boolean approved,
+            @RequestParam(value = "note", required = false) String note) {
         try {
             eventItemService.approveRentExternal(eventItemId, approverId, approved, note);
             return ResponseEntity.ok(true);
@@ -220,6 +221,33 @@ public class EventItemController {
 
         int count = eventItemService.approveReturn(eventId, approverId);
         return ResponseEntity.ok("✅ Approved return for " + count + " items. Inventory released.");
+    }
+
+    // ==================== ROOM ASSIGNMENT ====================
+
+    @PostMapping("/{id}/assign-room")
+    public ResponseEntity<String> assignToRoom(
+            @PathVariable("id") Long id,
+            @RequestParam("roomName") String roomName,
+            @RequestParam("quantity") Integer quantity) {
+        try {
+            eventItemService.assignToRoom(id, roomName, quantity);
+            return ResponseEntity.ok("✅ Item assigned to room: " + roomName);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("❌ " + e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/event/{eventId}/room")
+    public ResponseEntity<String> deleteRoom(
+            @PathVariable("eventId") Long eventId,
+            @RequestParam("roomName") String roomName) {
+        try {
+            eventItemService.deleteRoomFromEvent(eventId, roomName);
+            return ResponseEntity.ok("✅ Room deleted: " + roomName);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("❌ " + e.getMessage());
+        }
     }
 
 }

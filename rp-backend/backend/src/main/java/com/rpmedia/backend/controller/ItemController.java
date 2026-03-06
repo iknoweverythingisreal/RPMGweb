@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.rpmedia.backend.service.ItemAvailabilityService;
+import com.rpmedia.backend.service.ItemService;
 import com.rpmedia.backend.service.UnifiedAvailabilityService;
 
 import java.time.LocalDate;
@@ -21,6 +22,9 @@ public class ItemController {
 
     @Autowired
     private ItemRepository itemRepository;
+
+    @Autowired
+    private ItemService itemService;
 
     @Autowired
     private ItemAvailabilityService itemAvailabilityService;
@@ -55,21 +59,13 @@ public class ItemController {
     // Create new item
     @PostMapping
     public Item createItem(@RequestBody Item item) {
-        return itemRepository.save(item);
+        return itemService.createItem(item);
     }
 
     // Update item
     @PutMapping("/{id}")
     public Item updateItem(@PathVariable("id") Long id, @RequestBody Item updatedItem) {
-        Item item = itemRepository.findById(id).orElse(null);
-        if (item != null) {
-            item.setName(updatedItem.getName());
-            item.setDescription(updatedItem.getDescription());
-            item.setTotalQuantity(updatedItem.getTotalQuantity());
-            item.setImageUrl(updatedItem.getImageUrl());
-            return itemRepository.save(item);
-        }
-        return null;
+        return itemService.updateItem(id, updatedItem);
     }
 
     // Delete item
