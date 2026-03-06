@@ -1,0 +1,17 @@
+<header class="topbar">
+  <div class="brand">RP Media</div>
+  <div class="spacer"></div>
+
+  <nav *ngIf="user">
+    <a routerLink="/calendar">Calendar</a>
+    <a *ngIf="role === 'ADMIN'" routerLink="/admin">Admin</a>
+    <a *ngIf="role === 'ADMIN' || role === 'MANAGER' || role === 'TECHNICAL'"
+       routerLink="/inventory/select-event">Inventory</a>
+  </nav>
+
+  <div class="user" *ngIf="user">
+    <span class="dot" [style.background]="user.calendarColor || '#3b82f6'"></span>
+    <span>{{ user.name || user.email }}</span>
+    <button (click)="logout()">Logout</button>
+  </div>
+</header>

@@ -1,0 +1,60 @@
+<div class="history-page">
+    <!-- Header -->
+    <div class="header">
+        <button class="btn-back" (click)="goBackToInventory()">← กลับไป Inventory</button>
+        <h1>Event History</h1>
+        <p>{{ eventTitle }}</p>
+    </div>
+
+    <!-- Loading State -->
+    <div class="loading" *ngIf="isLoading">
+        <p>กำลังโหลดประวัติ...</p>
+    </div>
+
+    <!-- History Items -->
+    <div class="history-container" *ngIf="!isLoading && historyItems.length > 0">
+        <div class="combined-card" *ngFor="let item of historyItems">
+            <div class="card-left">
+                <div class="item-main">
+                    <span class="brand-model" *ngIf="item.brand || item.model">{{ item.brand }} {{ item.model }}</span>
+                    <h3 class="item-name">{{ item.itemName }}</h3>
+                </div>
+                <div class="source-breakdown">
+                    <span class="source-badge internal" *ngIf="item.internalQty > 0">
+                        <i class="fas fa-warehouse"></i> Internal: <strong>{{ item.internalQty }}</strong>
+                    </span>
+                    <span class="source-badge rental" *ngIf="item.rentalQty > 0">
+                        <i class="fas fa-truck"></i> Rental: <strong>{{ item.rentalQty }}</strong>
+                    </span>
+                </div>
+            </div>
+
+            <div class="card-right">
+                <div class="total-qty-box">
+                    <span class="label">TOTAL</span>
+                    <span class="value">{{ item.quantity }}</span>
+                </div>
+                <!-- <div class="status-indicator">
+                    <span class="status-dot" [class]="item.status?.toLowerCase()"></span>
+                    <span class="status-text">{{ item.status }}</span>
+                </div> -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-state" *ngIf="!isLoading && historyItems.length === 0">
+        <div class="empty-icon">📋</div>
+        <h2>ยังไม่มีประวัติการใช้งาน</h2>
+        <p>เริ่มเลือกอุปกรณ์สำหรับ Event นี้</p>
+        <button class="btn-primary" (click)="goBackToInventory()">ไปที่ Inventory</button>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="actions" *ngIf="!isLoading">
+        <button class="btn-export-pdf" (click)="exportToPDF()">
+            <i class="fa-solid fa-file-pdf"></i> Export Event Summary PDF
+        </button>
+        <button class="btn-secondary" (click)="goToSelectEvent()">เลือก Event อื่น</button>
+    </div>
+</div>

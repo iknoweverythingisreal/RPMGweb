@@ -1,0 +1,193 @@
+<div class="cart-page">
+  <!-- Background Shapes -->
+  <div class="bg-shapes">
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
+    <div class="shape shape-3"></div>
+  </div>
+
+  <div class="cart-container">
+    <!-- Header -->
+    <div class="header-compact">
+      <button class="btn-back-circle" (click)="goBack()" aria-label="Back">
+        <i class="fa fa-chevron-left"></i>
+      </button>
+      <div class="title-section">
+        <h1 class="marquee-text">{{ eventName() }}</h1>
+        <p>Equipment Cart</p>
+      </div>
+
+      <div class="header-actions">
+        <button class="btn-action btn-rental" (click)="openRentalModal()" [disabled]="isPastEvent()">
+          <span>Rental</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div *ngIf="!cart().length && !pendingRentals().length" class="empty-cart-container">
+      <div class="empty-icon">🛒</div>
+      <h3>Your cart is empty</h3>
+      <p>Go back to inventory to add some equipment or view assigned rooms.</p>
+      <div class="empty-actions">
+        <button class="btn-primary" (click)="goBack()">Back to Inventory</button>
+        <button class="btn-secondary" (click)="navigateToRoomDirector()">
+          <i class="fas fa-door-open"></i> View Rooms
+        </button>
+      </div>
+    </div>
+
+    <!-- Cart Items List -->
+    <div *ngIf="cart().length" class="cart-items-list">
+      <div class="cart-item-card" *ngFor="let item of cart()">
+        <div class="item-info">
+          <div class="item-main">
+            <span *ngIf="item.brand" class="brand">{{ item.brand }}</span>
+            <span *ngIf="item.model" class="model">{{ item.model }}</span>
+            <h3 class="item-name">
+              <span class="forced-rental-badge auto-rental" *ngIf="item.isForcedRental">AUTO RENTAL</span>
+              {{ item.itemName }}
+            </h3>
+          </div>
+          <div class="item-meta">
+            <span class="category-tag">{{ item.category }}</span>
+            <span class="uom">{{ item.uom }}</span>
+            <span class="room-badge" *ngIf="item.room">
+              <i class="fas fa-door-open"></i> {{ item.room }}
+            </span>
+          </div>
+        </div>
+
+        <div class="item-actions">
+          <div class="stock-info" *ngIf="availabilityMap().get(item.id); let avail">
+            <div class="source-pills" *ngIf="item.isForcedRental">
+              <div class="source-pill rental-badge active">
+                <i class="fas fa-truck-fast"></i>
+                <span class="lbl">EXTERNAL RENTAL</span>
+              </div>
+            </div>
+
+            <div class="source-pills" *ngIf="!item.isForcedRental">
+              <!-- Remaining Stock Badge -->
+              <div class="source-pill stock-total" [class.no-stock]="(avail.remainingStock || 0) <= 0">
+                <span class="lbl">REMAINING</span>
+                <span class="val">{{ (avail.remainingStock || 0) | number }}</span>
+              </div>
+
+              <!-- Avail Badge -->
+              <div class="source-pill avail" [class.avail-low]="(avail.netAvail || 0) < 0">
+                <span class="lbl">AFTER CART</span>
+                <span class="val">{{ avail.netAvail || 0 }}</span>
+              </div>
+
+              <!-- Shortage Badge (High Visibility) -->
+              <div class="source-pill rental-badge" *ngIf="(avail.overbooked || 0) > 0">
+                <i class="fas fa-triangle-exclamation"></i>
+                <span class="lbl">OVERBOOKED</span>
+                <span class="val">{{ (avail.overbooked || 0) | number }}</span>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="qty-selector">
+            <button class="btn-qty" (click)="changeQty(item.id, -1)" [disabled]="item.qty <= 1">-</button>
+            <input type="number" class="qty-input" [value]="item.qty" (input)="onQtyInput(item.id, $event)" min="1"
+              max="999">
+            <button class="btn-qty" (click)="changeQty(item.id, 1)">+</button>
+          </div>
+          <button class="btn-remove" (click)="removeItem(item.id)" title="Remove item">
+            <i class="fas fa-trash-alt"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rental Requests (Already Submitted) -->
+    <div *ngIf="pendingRentals().length" class="rental-requests-section">
+      <div class="section-header-compact" (click)="showRentals.set(!showRentals())">
+        <h2 class="section-title">
+          <i class="fas fa-file-invoice"></i> Rental Requests
+          <span class="count-badge">{{ pendingRentals().length }}</span>
+        </h2>
+        <button class="btn-toggle-rentals">
+          <i class="fas" [class.fa-chevron-down]="!showRentals()" [class.fa-chevron-up]="showRentals()"></i>
+        </button>
+      </div>
+
+      <div class="rentals-list-compact" *ngIf="showRentals()">
+        <div class="rental-card-compact" *ngFor="let item of pendingRentals()">
+          <div class="rental-left">
+            <span class="status-dot" [class]="item.status?.toLowerCase()"></span>
+            <div class="rental-info-mini">
+              <div class="rental-name-row">
+                <span class="rental-name">{{ item.itemName || 'External Rental' }}</span>
+                <span class="source-pill">External</span>
+              </div>
+              <div class="rental-meta-row" *ngIf="item.overbookNote || item.remark">
+                <span class="rental-note">{{ item.overbookNote || item.remark }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="rental-right">
+            <div class="rental-qty-pill">
+              <span class="lbl">Qty</span>
+              <span class="val">{{ item.requestedQuantity }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cart Footer (Show if cart has items OR event already has items) -->
+    <div class="cart-footer-premium" *ngIf="cart().length || pendingRentals().length">
+      <div class="summary-section">
+        <div class="summary-item">
+          <span>Total Items</span>
+          <strong>{{ cart().length }}</strong>
+        </div>
+        <div class="summary-item">
+          <span>Total Value</span>
+          <strong>{{ total() | number:'1.2-2' }}</strong>
+        </div>
+      </div>
+
+      <div class="action-buttons">
+        <button class="btn-secondary btn-rooms" (click)="navigateToRoomDirector()">
+          <i class="fas fa-door-open"></i> View Rooms
+        </button>
+        <button class="btn-confirm-booking" (click)="openConfirmModal()">
+          <i class="fas fa-arrow-right"></i> Proceed to Room Allocation
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirmation Modal -->
+  <div class="modal-overlay" *ngIf="showConfirmModal()" (click)="closeConfirmModal()">
+    <div class="modal-content glass-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Save & Continue</h2>
+        <button class="btn-close" (click)="closeConfirmModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <p>Save these <strong>{{ cart().length }}</strong> items to the event and proceed to **Room Allocation**?</p>
+        <div class="items-preview">
+          <div class="preview-item" *ngFor="let item of cart() | slice:0:5">
+            {{ item.itemName }} x {{ item.qty }}
+          </div>
+          <div class="more-items" *ngIf="cart().length > 5">
+            and {{ cart().length - 5 }} more items...
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" (click)="closeConfirmModal()">Cancel</button>
+        <button class="btn-confirm" (click)="proceedToAllocation()">Sync & Go to Rooms</button>
+      </div>
+    </div>
+  </div>
+
+
+</div>

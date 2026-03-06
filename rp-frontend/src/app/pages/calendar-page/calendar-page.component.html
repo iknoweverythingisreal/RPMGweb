@@ -1,0 +1,647 @@
+﻿<!-- calendar-page.component.html - Enhanced Template -->
+<div class="app-container" role="main" aria-label="Equipment Booking Calendar Application"
+  [class.sidebar-collapsed]="!isSidebarOpen">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <button class="menu-toggle circular-toggle" (click)="toggleSidebar()" aria-label="Toggle sidebar menu">
+        <i class="fas" [class.fa-angle-double-right]="!isSidebarOpen" [class.fa-angle-double-left]="isSidebarOpen"></i>
+      </button>
+
+      <div class="logo">
+        <i class="fas fa-calendar-alt"></i>
+        Equipment Calendar
+      </div>
+    </div>
+
+    <!-- UPDATED: header-right with user dropdown and search for mobile -->
+    <div class="header-right">
+      <!-- User Dropdown Menu -->
+      <div class="user-dropdown">
+        <div class="user-info" (click)="toggleUserMenu()" (keydown.enter)="toggleUserMenu()" tabindex="0">
+          <div class="user-avatar">
+            <i class="fas fa-user-circle" *ngIf="viewportIsMobile" style="font-size: 1.5rem;"></i>
+            <span *ngIf="!viewportIsMobile">{{ (currentUserName | slice:0:2) || 'ME' }}</span>
+          </div>
+          <div *ngIf="!viewportIsMobile">
+            <div style="font-weight: 600; font-size: 0.875rem;">{{ currentUserName || 'User' }}</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted);">Signed in</div>
+          </div>
+          <i class="fas fa-chevron-down" *ngIf="!viewportIsMobile" style="margin-left: .5rem; font-size: .75rem;"></i>
+        </div>
+
+        <div class="user-menu" *ngIf="isUserMenuOpen" (click)="$event.stopPropagation()">
+          <div class="user-menu-item" aria-disabled="true">
+            <i class="fas fa-user"></i>
+            <span>{{ currentUserName }}</span>
+          </div>
+          <div class="user-menu-divider"></div>
+          <!-- <button type="button" class="user-menu-item" (click)="navigateToProfile()">
+            <i class="fas fa-cog"></i>
+            <span>Settings</span>
+          </button> -->
+          <button type="button" class="user-menu-item" (click)="logout()">
+            <i class="fas fa-sign-out-alt"></i>
+            <span>Logout</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- <button class="icon-btn" *ngIf="viewportIsMobile" aria-label="Search">
+        <i class="fas fa-search"></i>
+      </button> -->
+
+      <button class="theme-toggle" (click)="toggleTheme()" *ngIf="!viewportIsMobile"
+        [attr.aria-label]="'Switch to ' + (theme === 'light' ? 'dark' : 'light') + ' theme'">
+        <i [class]="theme === 'light' ? 'fas fa-moon' : 'fas fa-sun'"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- Sidebar Overlay (Mobile) -->
+  <div class="sidebar-overlay" [class.open]="isSidebarOpen" (click)="closeSidebar()"></div>
+
+  <!-- Enhanced Sidebar -->
+  <aside class="sidebar" [class.open]="isSidebarOpen" role="complementary" aria-label="Calendar Controls and Filters"
+    (click)="$event.stopPropagation()">
+
+
+
+    <div class="sidebar-section">
+      <h3 class="section-title">Quick Actions</h3>
+      <button class="btn btn-primary" *ngIf="canCreateEvent" (click)="showEventModal(); closeSidebar()"
+        aria-label="Create new event">
+        <i class="fas fa-plus"></i>
+        New Event
+      </button>
+    </div>
+
+    <!-- Equipment Section -->
+    <div class="sidebar-section">
+      <h3 class="section-title">Equipment</h3>
+      <button class="btn btn-secondary" (click)="navigateToEquipment(); closeSidebar()"
+        style="margin-bottom: 0.5rem; width: 100%;">
+        <i class="fas fa-tools"></i>
+        Manage Equipment
+      </button>
+      <button class="btn btn-secondary" (click)="navigateToHistory(); closeSidebar()"
+        style="margin-bottom: 0.5rem; width: 100%;">
+        <i class="fas fa-history"></i>
+        History
+      </button>
+      <button class="btn btn-secondary" *ngIf="userService.isAdmin || userService.isTechLead"
+        (click)="navigateToAdmin(); closeSidebar()" style="margin-bottom: 1rem; width: 100%;">
+        <i class="fas fa-user-shield"></i>
+        {{ userService.isTechLead ? 'Approve Rental' : 'Approve Users' }}
+      </button>
+      <!-- <button class="btn btn-secondary" (click)="navigateToReplace(); closeSidebar()"
+        style="margin-bottom: 1rem; width: 100%;">
+        <i class="fas fa-exchange-alt"></i>
+        Swap item
+      </button> -->
+      <div class="filter-list">
+        <!-- Status indicators removed as requested -->
+      </div>
+    </div>
+
+    <!-- People -->
+    <div class="sidebar-section">
+      <h3 class="section-title" id="people-heading">RP Crews</h3>
+
+      <div class="search-box">
+        <i class="fas fa-search search-icon"></i>
+        <input type="text" class="search-input" placeholder="Search people..." [(ngModel)]="userQuery"
+          (input)="onUserQueryChange()" (keydown)="onUserSearchKeydown($event)" />
+      </div>
+
+      <div class="filter-list" role="group" aria-labelledby="people-heading">
+        <div class="filter-item" *ngFor="let u of users; trackBy: trackByUser"
+          [class.active]="selectedUserIds.includes(u.id)" [class.hidden]="!isUserVisible(u)" role="checkbox"
+          [attr.aria-checked]="selectedUserIds.includes(u.id)" (click)="toggleUser(u.id)">
+
+          <div class="filter-indicator"
+            [style.backgroundColor]="u.calendarColor || u.calendar_color || u.color || '#0ea5e9'">
+          </div>
+          <span class="filter-label">{{ u.displayName }}</span>
+        </div>
+      </div>
+
+      <div class="action-buttons" role="group" aria-label="People selection actions">
+        <button class="btn btn-secondary btn-sm" (click)="selectAllUsers()" aria-label="Select all people">
+          Select all
+        </button>
+        <button class="btn btn-secondary btn-sm" (click)="clearAllUsers()" aria-label="Clear all people selection">
+          Clear
+        </button>
+        <button *ngIf="userService.isManager" class="btn btn-secondary btn-sm" (click)="showOnlyMe()"
+          aria-label="Show only my calendar">
+          Only me
+        </button>
+      </div>
+    </div>
+
+    <!-- Teamup Owners -->
+    <div class="sidebar-section" *ngIf="owners.length > 0">
+      <h3 class="section-title" id="owners-heading">RP Crews (Teamup)</h3>
+      <div class="filter-list" role="group" aria-labelledby="owners-heading">
+        <div class="filter-item" *ngFor="let o of owners" [class.active]="selectedOwnerIds.includes(o.id)"
+          role="checkbox" [attr.aria-checked]="selectedOwnerIds.includes(o.id)" (click)="toggleOwner(o.id)">
+          <div class="filter-indicator" [style.backgroundColor]="o.colorHex || '#888'"></div>
+          <span class="filter-label">{{ o.name }}</span>
+        </div>
+      </div>
+      <div class="action-buttons" role="group">
+        <button class="btn btn-secondary btn-sm" (click)="selectAllOwners()">Select all</button>
+        <button class="btn btn-secondary btn-sm" (click)="clearAllOwners()">Clear</button>
+      </div>
+    </div>
+
+    <!-- Event types -->
+    <div class="sidebar-section">
+      <h3 class="section-title" id="categories-heading">Event types</h3>
+      <div class="filter-list" role="group" aria-labelledby="categories-heading">
+        <div class="filter-item" *ngFor="let cat of categories; trackBy: trackByCategory" [class.active]="cat.visible"
+          (click)="toggleCategory(cat.id)">
+          <div class="filter-indicator" [style.backgroundColor]="cat.color"></div>
+          <span class="filter-label">{{ cat.name }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Views -->
+    <div class="sidebar-section">
+      <h3 class="section-title" id="views-heading">Views</h3>
+      <div class="action-buttons vertical" style="flex-direction: column;" role="tablist"
+        aria-labelledby="views-heading">
+        <button class="btn btn-secondary" [class.active]="currentView === 'month'"
+          (click)="setView('month'); closeSidebar()" role="tab" [attr.aria-selected]="currentView === 'month'">
+          <i class="fas fa-calendar"></i>
+          Month
+        </button>
+        <button class="btn btn-secondary" [class.active]="currentView === 'week'"
+          (click)="setView('week'); closeSidebar()" role="tab" [attr.aria-selected]="currentView === 'week'">
+          <i class="fas fa-calendar-week"></i>
+          Week
+        </button>
+        <button class="btn btn-secondary" [class.active]="currentView === 'day'"
+          (click)="setView('day'); closeSidebar()" role="tab" [attr.aria-selected]="currentView === 'day'">
+          <i class="fas fa-calendar-day"></i>
+          Day
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content" role="main" aria-label="Calendar Grid">
+
+    <!-- Loading State -->
+    <div *ngIf="isLoading" class="loading" role="status" aria-live="polite">
+      <div class="spinner" aria-hidden="true"></div>
+      Loading calendar...
+    </div>
+
+    <!-- Calendar Header -->
+    <div class="calendar-header" *ngIf="!isLoading" role="banner">
+      <div class="calendar-nav" role="navigation" aria-label="Calendar navigation">
+        <div class="nav-controls">
+          <button class="nav-btn" (click)="previousPeriod()" [attr.title]="'Go to previous ' + currentView"
+            [attr.aria-label]="'Previous ' + currentView">
+            <i class="fas fa-chevron-left"></i>
+          </button>
+
+          <button class="nav-btn" (click)="nextPeriod()" [attr.title]="'Go to next ' + currentView"
+            [attr.aria-label]="'Next ' + currentView">
+            <i class="fas fa-chevron-right"></i>
+          </button>
+        </div>
+
+        <div class="period-display">
+          <h1 class="current-period" id="current-period-heading">
+            {{ getCurrentPeriodText() }}
+          </h1>
+          <i class="fas fa-chevron-down dropdown-icon" *ngIf="viewportIsMobile"></i>
+        </div>
+
+        <button class="btn btn-secondary today-btn" (click)="goToToday()" aria-label="Go to today">
+          Today
+        </button>
+      </div>
+
+      <div class="calendar-actions" role="toolbar" aria-label="Calendar actions">
+        <select class="view-selector" [value]="currentView" (change)="onViewChange($event)"
+          aria-label="Calendar view selector" title="Select calendar view">
+          <option value="month">Month View</option>
+          <option value="week">Week View</option>
+          <option value="day">Day View</option>
+        </select>
+        <!-- <button class="btn btn-secondary" (click)="exportCalendar()" title="Export calendar data"
+          aria-label="Export calendar">
+          <i class="fas fa-download"></i>
+          Export
+        </button> -->
+        <button class="btn btn-primary" *ngIf="userService.isAdmin" (click)="syncNow()"
+          title="Sync with Teamup (Next 2 Years)" aria-label="Sync from Teamup">
+          <i class="fas fa-sync-alt"></i>
+          Sync Future
+        </button>
+      </div>
+    </div>
+
+    <!-- Calendar Content -->
+    <div class="calendar-content" *ngIf="!isLoading" role="region" aria-live="polite">
+
+      <!-- Month View -->
+      <section class="month-view" *ngIf="currentView === 'month'" role="grid" aria-labelledby="current-period-heading">
+
+        <div class="calendar-container">
+          <div class="calendar-weekdays" role="row">
+            <div class="weekday week-num-header" *ngIf="viewportIsMobile"></div>
+            <div class="weekday" *ngFor="let day of ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']" role="columnheader"
+              [attr.aria-label]="day">
+              {{ day }}
+            </div>
+          </div>
+
+          <!-- Calendar Grid Wrapper -->
+          <div class="calendar-grid-wrap" #gridWrap role="presentation">
+
+            <!-- Base month grid - NOW ROW-BASED -->
+            <div class="calendar-grid" role="grid" aria-label="Calendar dates">
+              <!-- Loop through rows instead of flat cells -->
+              <div class="calendar-row" *ngFor="let row of calendarRows; let rowIdx = index"
+                [style.min-height.px]="rowHeights[rowIdx] || 100" role="row">
+
+                <!-- Week Number Column -->
+                <div class="week-number-cell" *ngIf="viewportIsMobile">
+                  {{ getWeekNumber(row.cells[0].date) }}
+                </div>
+
+                <div *ngFor="let cell of row.cells; trackBy: trackByCell; let i = index" class="calendar-cell"
+                  [class.other-month]="!cell.isCurrentMonth" [class.today]="cell.isToday"
+                  [class.selected]="isSameDay(cell.date, selectedDate)" role="gridcell"
+                  [attr.tabindex]="cell.isCurrentMonth ? 0 : -1" (keydown)="onCellKeydown($event, cell)"
+                  (click)="onCellClick($event, cell)">
+
+                  <div class="date-number" [attr.aria-label]="'Date ' + cell.date.getDate()">
+                    {{ cell.date.getDate() }}
+                  </div>
+
+                  <!-- Single-day events container -->
+                  <!-- Unified Layout Container -->
+                  <div class="events-container" role="list"
+                    [attr.aria-label]="cell.events.length + ' events on ' + cell.date.toDateString()">
+                    <!-- Events are rendered via SVG overlay to prevent overlap and duplication -->
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- SVG overlay for multi-day events -->
+            <svg class="bars-overlay" width="100%" height="100%" preserveAspectRatio="none"
+              [attr.viewBox]="'0 0 ' + svgW + ' ' + svgH" aria-label="Multi-day events overlay"
+              *ngIf="svgBars.length > 0">
+
+              <!-- Gradient definitions -->
+              <defs>
+                <linearGradient *ngFor="let grad of gradientDefs" [attr.id]="grad.id" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop *ngFor="let stop of grad.stops" [attr.offset]="stop.offset" [attr.stop-color]="stop.color" />
+                </linearGradient>
+
+                <!-- Stripe patterns for multi-owner events -->
+                <pattern *ngFor="let pat of patternDefs" [attr.id]="pat.id" patternUnits="userSpaceOnUse"
+                  [attr.width]="pat.colors.length * 8" height="10" patternTransform="rotate(45)">
+                  <!-- Alternate all colors in stripes -->
+                  <rect *ngFor="let col of pat.colors; let i = index" [attr.x]="i * 8" width="8" height="10"
+                    [attr.fill]="col"></rect>
+                </pattern>
+              </defs>
+
+              <g *ngFor="let b of svgBars; trackBy: trackBySvgBar" role="button" [attr.tabindex]="0"
+                (click)="openEvent(b.id, $event)" (keydown)="onSvgBarKeydown($event, b.id)">
+
+                <!-- Main event bar -->
+                <rect class="bar-rect" [attr.x]="b.x" [attr.y]="b.y" [attr.width]="b.w" [attr.height]="b.h"
+                  [attr.fill]="b.color" [style.fill]="b.color" [attr.title]="b.title" [attr.aria-label]="b.title" rx="6"
+                  ry="6"></rect>
+
+                <!-- Left continuation arrow -->
+                <polygon *ngIf="b.contLeft"
+                  [attr.points]="(b.x)+','+(b.y+b.h/2)+' '+(b.x+8)+','+(b.y)+' '+(b.x+8)+','+(b.y+b.h)"
+                  [attr.fill]="b.color" [style.fill]="b.color"></polygon>
+
+                <!-- Right continuation arrow -->
+                <polygon *ngIf="b.contRight"
+                  [attr.points]="(b.x+b.w)+','+(b.y+b.h/2)+' '+(b.x+b.w-8)+','+(b.y)+' '+(b.x+b.w-8)+','+(b.y+b.h)"
+                  [attr.fill]="b.color" [style.fill]="b.color"></polygon>
+
+                <!-- Event text -->
+                <text class="bar-text" [attr.fill]="getBarTextColor(b.color)" [style.fill]="getBarTextColor(b.color)"
+                  [attr.x]="b.x + 6" [attr.y]="b.y + b.h/2 + 4" [attr.font-size]="viewportIsMobile ? '10' : '11'"
+                  font-weight="500">
+                  {{ truncateText(b.title, viewportIsMobile ? 6 : 16) }}
+                </text>
+              </g>
+            </svg>
+          </div>
+        </div>
+      </section>
+
+      <!-- Week View -->
+      <section class="week-view" *ngIf="currentView === 'week'" role="region" aria-label="Week view">
+        <div class="scheduler-container">
+          <!-- Sticky Header Row -->
+          <div class="scheduler-header">
+            <div class="time-spacer"></div>
+            <div class="day-col-header" *ngFor="let day of weekDays" [class.today]="day.isToday">
+              <span class="weekday">{{ day.date | date:'EEE' }}</span>
+              <span class="day-number">{{ day.date | date:'d' }}</span>
+            </div>
+          </div>
+
+          <!-- Scrollable Body -->
+          <div class="scheduler-body">
+            <!-- Sticky Time Column -->
+            <div class="time-column">
+              <div class="time-label" *ngFor="let slot of timeSlots" [style.height.px]="HOUR_HEIGHT">
+                {{ slot }}
+              </div>
+            </div>
+
+            <!-- Grid Grid -->
+            <div class="grid-columns">
+              <div class="day-grid-column" *ngFor="let day of weekDays">
+                <!-- Grid Lines -->
+                <div class="hour-marker" *ngFor="let slot of timeSlots" [style.height.px]="HOUR_HEIGHT"></div>
+
+                <!-- Events Overlay -->
+                <div class="events-overlay">
+                  <div *ngFor="let ev of day.events" class="grid-event-card" [ngStyle]="getEventGridStyle(ev)"
+                    (click)="openEvent(ev.id, $event)">
+                    <div class="event-inner">
+                      <div class="event-title">{{ ev.title }}</div>
+                      <div class="event-time" *ngIf="!viewportIsMobile">
+                        {{ ev.start | date:'HH:mm' }} - {{ ev.end | date:'HH:mm' }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Day View -->
+      <section class="day-view" *ngIf="currentView === 'day'" role="region" aria-label="Day view">
+        <div class="scheduler-container single-day">
+          <div class="scheduler-header">
+            <div class="time-spacer"></div>
+            <div class="day-col-header today">
+              <span class="weekday">{{ currentDate | date:'EEEE' }}</span>
+              <span class="day-number">{{ currentDate | date:'MMMM d, yyyy' }}</span>
+            </div>
+          </div>
+
+          <div class="scheduler-body">
+            <div class="time-column">
+              <div class="time-label" *ngFor="let slot of timeSlots" [style.height.px]="HOUR_HEIGHT">
+                {{ slot }}
+              </div>
+            </div>
+
+            <div class="grid-columns">
+              <div class="day-grid-column">
+                <div class="hour-marker" *ngFor="let slot of timeSlots" [style.height.px]="HOUR_HEIGHT"></div>
+
+                <div class="events-overlay">
+                  <div *ngFor="let ev of filteredEvents" class="grid-event-card" [ngStyle]="getEventGridStyle(ev)"
+                    (click)="openEvent(ev.id, $event)">
+                    <div class="event-inner">
+                      <div class="event-title">{{ ev.title }}</div>
+                      <div class="event-time">
+                        {{ ev.start | date:'HH:mm' }} - {{ ev.end | date:'HH:mm' }}
+                      </div>
+                      <div class="event-location" *ngIf="ev.location">
+                        <i class="fas fa-map-marker-alt"></i> {{ ev.location }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Event Modal -->
+  <div class="modal-overlay" [class.hidden]="!isModalOpen" role="dialog" aria-modal="true" (click)="closeModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()" role="document">
+
+      <div class="modal-header">
+        <h3 class="modal-title">{{ isEditMode ? 'Edit Event' : 'New Event' }}</h3>
+        <button class="close-btn" (click)="closeModal()" title="Close dialog" aria-label="Close event dialog">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <form (submit)="saveEvent($event)" role="form" aria-label="Event details form">
+
+          <div class="form-group">
+            <label class="form-label" for="eventTitle">Event Title *</label>
+            <input type="text" id="eventTitle" class="form-input" required [(ngModel)]="form.title" name="title"
+              placeholder="Enter event title" autocomplete="off" aria-required="true">
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="eventStart">Start Date & Time *</label>
+              <input type="datetime-local" id="eventStart" class="form-input" required [(ngModel)]="form.start"
+                name="start" [min]="minDateTime" (change)="onStartDateChange()" aria-required="true">
+              <small class="form-hint">Select event start date and time</small>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="eventEnd">End Date & Time *</label>
+              <input type="datetime-local" id="eventEnd" class="form-input" required [(ngModel)]="form.end" name="end"
+                [min]="form.start || minDateTime" [disabled]="!form.start" aria-required="true">
+              <small class="form-hint" *ngIf="!form.start">Please select start date first</small>
+              <small class="form-hint" *ngIf="form.start">Start: {{ form.start | date:'short' }}</small>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="eventLocation">Location</label>
+            <input type="text" id="eventLocation" class="form-input" [(ngModel)]="form.location" name="location"
+              placeholder="Enter event location" autocomplete="off">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="eventCategory">Event Types</label>
+            <select id="eventCategory" class="form-input" [(ngModel)]="form.category" name="category"
+              aria-label="Select event category">
+              <option *ngFor="let cat of categories" [value]="cat.id">
+                {{ cat.name }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Assign Managers/Admins</label>
+            <div class="manager-selection">
+              <div *ngFor="let user of assignmentUsers" class="manager-item" (click)="toggleManagerSelection(user.id)"
+                [class.selected]="isManagerSelected(user.id)">
+                <div class="manager-checkbox">
+                  <i class="fas fa-check" *ngIf="isManagerSelected(user.id)"></i>
+                </div>
+                <div class="manager-indicator"
+                  [style.backgroundColor]="user.calendarColor || user.calendar_color || user.color || '#0ea5e9'">
+                </div>
+                <span class="manager-name">{{ user.displayName }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="eventDescription">Description</label>
+            <textarea id="eventDescription" class="form-input form-textarea" [(ngModel)]="form.description"
+              name="description" placeholder="Add event description (optional)" rows="4"></textarea>
+          </div>
+        </form>
+      </div>
+
+      <div class="modal-footer" role="group" aria-label="Form actions">
+        <button type="button" class="btn btn-secondary" (click)="closeModal()" aria-label="Cancel and close dialog">
+          Cancel
+        </button>
+        <button type="submit" class="btn btn-primary" *ngIf="canCreateEvent" (click)="saveEvent()"
+          [disabled]="!isFormValid()" [attr.aria-label]="isEditMode ? 'Update this event' : 'Save new event'">
+          {{ isEditMode ? 'Update Event' : 'Save Event' }}
+        </button>
+        <button type="button" class="btn" *ngIf="canCreateEvent && isEditMode" (click)="deleteEvent()"
+          style="background: var(--error-color); border-color: var(--error-color); color: white;">
+          Delete
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Event Detail Modal (Centered Popup) ===== -->
+  <div class="modal-overlay event-detail-overlay" [class.hidden]="!isDrawerOpen" role="dialog" aria-modal="true"
+    (click)="closeDrawer()">
+    <div class="modal-content event-detail-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3 class="modal-title">{{ selectedEvent?.title || 'Event Details' }}</h3>
+        <button class="close-btn" (click)="closeDrawer()" title="Close dialog">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <div class="modal-body detail-grid">
+        <!-- Left Column: Information -->
+        <div class="info-column" *ngIf="selectedEvent">
+          <div class="info-item date-time">
+            <i class="fas fa-calendar-alt"></i>
+            <div class="info-text">
+              <span class="main-val">{{ selectedEvent.start | date:'EEE, d MMM yyyy, HH:mm' }}</span>
+              <span class="sub-val" *ngIf="selectedEvent.end"> {{ selectedEvent.end | date:'EEE, d MMM yyyy, HH:mm'
+                }}</span>
+            </div>
+          </div>
+
+          <div class="info-item" *ngIf="selectedEvent.location">
+            <i class="fas fa-map-marker-alt"></i>
+            <div class="info-text">
+              <span class="main-val">{{ selectedEvent.location }}</span>
+            </div>
+          </div>
+
+          <div class="info-item" *ngIf="selectedEvent.description">
+            <i class="fas fa-align-left"></i>
+            <div class="info-text">
+              <span class="label">Description</span>
+              <span class="description-val">{{ selectedEvent.description }}</span>
+            </div>
+          </div>
+
+          <div class="info-item"
+            *ngIf="selectedEvent.ownerName || (selectedEvent.managers && selectedEvent.managers.length > 0)">
+            <i class="fas fa-user-circle"></i>
+            <div class="info-text">
+              <span class="label">Creator / Organizer</span>
+              <span class="main-val">{{ getManagerNames(selectedEvent) }}</span>
+            </div>
+          </div>
+
+
+          <div class="info-item booked-items-section" *ngIf="bookedItems.length > 0">
+            <i class="fas fa-boxes"></i>
+            <div class="info-text">
+              <div class="booked-header">
+                <span class="label">Booked Items / รายการอุปกรณ์เบิก</span>
+                <span class="total-count-badge">{{ totalItemsCount }} Total Items</span>
+              </div>
+
+              <div class="accordion-container">
+                <div *ngFor="let group of groupedItems" class="accordion-group" [class.open]="group.isOpen">
+                  <div class="accordion-header" (click)="toggleItemGroup(group)">
+                    <span class="group-name">{{ group.category }}</span>
+                    <span class="group-count">{{ group.items.length }}</span>
+                    <i class="fas fa-chevron-down toggle-icon"></i>
+                  </div>
+                  <div class="accordion-content">
+                    <div *ngFor="let item of group.items" class="mini-item-row">
+                      <span class="item-qty">{{ item.requestedQuantity || item.allocatedQuantity }}</span>
+                      <div class="item-details">
+                        <span class="item-name">
+                          {{ (item.brand || item.item?.brand) ? (item.brand || item.item?.brand) + ' ' : '' }}{{
+                          (item.model || item.item?.model) ? (item.model || item.item?.model) + ' ' : '' }}{{
+                          item.itemName || item.item?.name || item.item?.itemName || 'Item' }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Action buttons for mobile - visible only on small screens -->
+                <div class="mobile-actions" *ngIf="viewportIsMobile">
+                  <button class="btn-full btn-success" (click)="editEvent()" *ngIf="canEditSelected()">
+                    <i class="fas fa-edit"></i> Edit
+                  </button>
+                  <button class="btn-full btn-light" (click)="printWarehouseReport()">
+                    <i class="fas fa-print"></i> Print
+                  </button>
+                </div>
+
+
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Actions (Visible on Desktop) -->
+        <div class="action-column" *ngIf="selectedEvent && !viewportIsMobile">
+          <button class="btn-full btn-success" (click)="editEvent()" *ngIf="canEditSelected()">
+            <i class="fas fa-edit"></i> Edit
+          </button>
+          <button class="btn-full btn-light" (click)="printWarehouseReport()">
+            <i class="fas fa-print"></i> Print
+          </button>
+
+          <button class="btn-full btn-light" (click)="openEquipmentPage()" [disabled]="isPastEvent()"
+            [class.disabled]="isPastEvent()" *ngIf="!userService.isTechLead">
+            <i class="fas fa-tools" [class.fa-lock]="isPastEvent()"></i> {{ isPastEvent() ? 'Event Closed' : 'Add items'
+            }}
+          </button>
+
+          <button class="btn-full btn-text-only" (click)="deleteEvent()" *ngIf="canEditSelected()">
+            Delete Event
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

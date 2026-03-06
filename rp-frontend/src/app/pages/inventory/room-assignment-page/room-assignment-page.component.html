@@ -1,0 +1,244 @@
+<div class="page-container">
+    <div class="bg-shapes">
+        <div class="shape shape-1"></div>
+        <div class="shape shape-2"></div>
+        <div class="shape shape-3"></div>
+    </div>
+
+    <!-- Header v3 -->
+    <header class="page-header">
+        <div class="header-left">
+            <button class="btn-return" (click)="goBack()">
+                <i class="fa fa-chevron-left"></i>
+            </button>
+            <div class="title-section">
+                <h1>Room Director</h1>
+                <p>{{ eventName() }}</p>
+            </div>
+        </div>
+
+        <div class="header-center">
+            <div class="progress-wrap">
+                <div class="progress-label">
+                    <span>ALLOCATION PROGRESS</span>
+                    <span class="pct">{{ getProgressPercentage() }}%</span>
+                </div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar-fill" [style.width.%]="getProgressPercentage()"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="header-right">
+            <button *ngIf="isManager" class="btn-finish-header" (click)="finalizeBooking()">
+                FINALIZE & BOOK <i class="fa-solid fa-circle-check"></i>
+            </button>
+            <button *ngIf="isManager" class="btn-add-room" (click)="addRoom()">
+                <i class="fa-solid fa-plus"></i> CREATE ROOM
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <div class="workspace">
+
+        <!-- Mobile Tab Navigation -->
+        <nav class="mobile-tabs">
+            <button class="tab-btn" [class.active]="mobileTab() === 'pool'" (click)="mobileTab.set('pool')">
+                <i class="fa-solid fa-boxes-stacked"></i>
+                <span>UNASSIGNED ({{ getUnassignedItems().length }})</span>
+            </button>
+            <button class="tab-btn" [class.active]="mobileTab() === 'rooms'" (click)="mobileTab.set('rooms')">
+                <i class="fa-solid fa-layer-group"></i>
+                <span>ROOMS ({{ rooms().length }})</span>
+            </button>
+        </nav>
+
+        <!-- Categorized Pool (Left) -->
+        <aside class="pool-pane" [class.hidden-mobile]="mobileTab() === 'rooms'">
+            <!-- Active Room Selection Sticky (Mobile Only) -->
+            <div class="mobile-active-room-bar" *ngIf="activeRoomName()">
+                <div class="info">
+                    <span class="lbl">DRIVING TO:</span>
+                    <span class="val">{{ activeRoomName() }}</span>
+                </div>
+                <button class="btn-change-tab" (click)="mobileTab.set('rooms')">CHANGE <i
+                        class="fa fa-chevron-right"></i></button>
+            </div>
+
+            <div class="pane-header">
+                <div class="title-info">
+                    <i class="fa-solid fa-boxes-stacked"></i>
+                    <h2>UNASSIGNED POOL</h2>
+                </div>
+                <span class="count">{{ getUnassignedItems().length }}</span>
+            </div>
+
+            <div class="pool-list">
+                <div class="pool-category-group" *ngFor="let cat of getPoolCategories()">
+                    <div class="cat-header">{{ cat }}</div>
+
+                    <div class="pool-item-row" *ngFor="let item of getItemsInCategory(cat)"
+                        [class.stock-only-row]="item.isStockOnly"
+                        [class.rental-only-row]="item.isRentalOnly || item.isShortage" (click)="quickAssign(item)">
+
+                        <div class="item-left">
+                            <div class="qty-input-wrap" (click)="$event.stopPropagation()">
+                                <input type="number" [value]="item.moveQty" (input)="onQtyChange(item, $event)" min="1"
+                                    max="999">
+                            </div>
+                        </div>
+
+                        <div class="item-info">
+                            <div class="item-header">
+                                <span class="brand-model">{{ item.brand }} {{ item.model }}</span>
+                                <div class="status-indicators">
+                                    <div class="type-tag stock" *ngIf="item.isStockOnly">
+                                        <i class="fa-solid fa-warehouse"></i>
+                                        <span>WAREHOUSE STOCK</span>
+                                    </div>
+                                    <div class="type-tag rental" *ngIf="item.isRentalOnly || item.isShortage">
+                                        <i class="fa-solid fa-truck-fast"></i>
+                                        <span>{{ item.isRentalOnly ? 'RENTAL' : 'SHORTAGE / RENTAL' }}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <h3 class="item-name">{{ item.itemName }}</h3>
+
+                            <div class="item-footer">
+                                <div class="source-pills">
+                                    <span class="type-badge stock" *ngIf="item.allocatedQuantity > 0">
+                                        AVAIL: {{ item.allocatedQuantity }}
+                                    </span>
+                                    <span class="type-badge rental-auto" *ngIf="item.isRentalOnly || item.isShortage">
+                                        REQUIRED: {{ item.requestedQuantity }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="assign-hint">
+                            <i class="fa-solid fa-chevron-right"></i>
+                        </div>
+
+                        <!-- 🔹 Return to Cart Action -->
+                        <div class="return-cart-action" (click)="$event.stopPropagation()" *ngIf="isManager">
+                            <button class="btn-return-to-cart" (click)="returnToCart(item)" title="Return to Cart">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="empty-pool-state" *ngIf="getUnassignedItems().length === 0">
+                    <div class="empty-visual">
+                        <div class="glow-bg"></div>
+                        <i class="fa-solid fa-boxes-packing"></i>
+                    </div>
+                    <h3>ALL ITEMS ASSIGNED</h3>
+                    <p>The unassigned pool is clear. All equipment has been directed to rooms.</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Configurator Grid (Right) -->
+        <main class="config-grid" [class.hidden-mobile]="mobileTab() === 'pool'">
+            <div class="room-card" *ngFor="let room of rooms()" [class.active-target]="activeRoomName() === room"
+                (click)="selectActiveRoom(room)">
+
+                <div class="room-header">
+                    <div class="room-state-indicator">
+                        <div class="dot"></div>
+                        <span>{{ activeRoomName() === room ? 'ACTIVE' : 'TARGET' }}</span>
+                    </div>
+                    <button *ngIf="isManager" class="btn-delete" (click)="deleteRoom(room); $event.stopPropagation()">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+
+                <div class="room-body">
+                    <h3>{{ room }}</h3>
+                    <div class="room-stats">
+                        <span class="stat-main">{{ getRoomTotalQty(room) }} Items Total</span>
+                        <div class="stat-breakdown">
+                            <span class="s-stock" *ngIf="getRoomStockQty(room) > 0">
+                                <i class="fa-solid fa-warehouse"></i> {{ getRoomStockQty(room) }}
+                            </span>
+                            <span class="s-rental" *ngIf="getRoomRentalQty(room) > 0">
+                                <i class="fa-solid fa-truck-fast"></i> {{ getRoomRentalQty(room) }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="room-item-list">
+                        <div class="room-item-row" *ngFor="let item of getItemsInRoom(room)"
+                            [class.rental-row]="item.isRentalOnly || item.isShortage">
+                            <div class="item-visual-col">
+                                <div class="cat-pill" [title]="item.categoryName">
+                                    {{ getCategoryIcon(item.categoryName) }}
+                                </div>
+                            </div>
+
+                            <div class="item-detail-col">
+                                <div class="item-identity">
+                                    <span class="brand">{{ item.brand }}</span>
+                                    <span class="model">{{ item.model }}</span>
+                                    <span class="row-type-label"
+                                        [class.is-rental]="item.isRentalOnly || item.isShortage">
+                                        {{ item.isStockOnly ? 'WAREHOUSE STOCK' : (item.isShortage ? 'SHORTAGE' :
+                                        'RENTAL') }}
+                                    </span>
+                                </div>
+                                <div class="item-status-meta">
+                                    <span class="main-qty-badge">{{ item.requestedQuantity }}x</span>
+                                    <div class="availability-tags">
+                                        <span class="tag-stock" *ngIf="item.isStockOnly">
+                                            <i class="fa-solid fa-warehouse"></i> STOCK
+                                        </span>
+                                        <span class="tag-overbook" *ngIf="item.isRentalOnly || item.isShortage">
+                                            <i class="fa-solid fa-truck-fast"></i> {{ item.isShortage ? 'SHORTAGE' :
+                                            'RENTAL' }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="item-action-col">
+                                <div class="unassign-stepper">
+                                    <input type="number" [value]="item.moveQty" (input)="onQtyChange(item, $event)"
+                                        min="1" [max]="item.requestedQuantity">
+                                    <button class="btn-quick-remove" (click)="unassign(item); $event.stopPropagation()"
+                                        title="Return selected quantity to pool">
+                                        <i class="fa-solid fa-arrow-left"></i>
+                                    </button>
+                                </div>
+                                <button *ngIf="isManager" class="btn-return-global"
+                                    (click)="returnToCart(item); $event.stopPropagation()"
+                                    title="Remove item globally & return to cart">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="room-drop-zone" *ngIf="getItemsInRoom(room).length === 0">
+                            <i class="fa-solid fa-circle-plus"></i>
+                            <p>Direct items here</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="empty-focus-card" *ngIf="rooms().length === 0" (click)="addRoom()">
+                <i class="fa-solid fa-layer-group"></i>
+                <h3>Design Your First Room</h3>
+                <p>Click here to begin directing equipment</p>
+            </div>
+        </main>
+    </div>
+
+    <div class="sync-overlay" *ngIf="isLoading()">
+        <div class="pulse-loader"></div>
+        <div class="sync-text">SYNCING STUDIO...</div>
+    </div>
+
+</div>

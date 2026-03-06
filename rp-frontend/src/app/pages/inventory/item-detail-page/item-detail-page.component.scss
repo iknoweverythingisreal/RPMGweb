@@ -1,0 +1,133 @@
+@use 'variable' as *;
+@use 'mixins' as *;
+
+:host {
+  display: block;
+  padding: $space-lg;
+  min-height: 100vh;
+  background: linear-gradient(145deg, $color-bg-gradient-start, $color-bg-gradient-end);
+  color: $color-text-light;
+  font-family: $font-main;
+}
+
+/* ───────────────────────────────
+   HEADER
+─────────────────────────────── */
+.detail-header {
+  @include card;
+  @include flex-center;
+  justify-content: space-between;
+  padding: $space-md $space-lg;
+  margin-bottom: $space-lg;
+
+  h1 {
+    font-size: 1.6rem;
+    font-weight: 600;
+    @include text-gradient;
+  }
+
+  button {
+    @include button-secondary;
+    font-size: 0.9rem;
+    padding: 6px 16px;
+  }
+}
+
+/* ───────────────────────────────
+   MAIN CONTENT
+─────────────────────────────── */
+.detail-content {
+  display: flex;
+  flex-direction: row;
+  gap: $space-xl;
+
+  @include mobile {
+    flex-direction: column;
+  }
+}
+
+/* LEFT PANEL — IMAGE + BASIC INFO */
+.left-panel {
+  width: 300px;
+
+  img {
+    width: 100%;
+    height: auto;
+    border-radius: $radius-lg;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    object-fit: cover;
+  }
+
+  .category {
+    margin-top: $space-md;
+    font-size: 0.85rem;
+    color: $color-primary-light;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+}
+
+/* RIGHT PANEL — DETAILS */
+.right-panel {
+  flex: 1;
+  @include card;
+  padding: $space-xl;
+
+  h2 {
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin-bottom: $space-md;
+  }
+
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: $space-lg;
+
+    .meta-item {
+      background: rgba(255, 255, 255, 0.03);
+      padding: $space-sm $space-md;
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: $radius-md;
+
+      .label {
+        font-size: 0.8rem;
+        color: $color-text-muted;
+      }
+      .value {
+        font-size: 1rem;
+        font-weight: 500;
+        color: $color-text-light;
+      }
+    }
+  }
+}
+
+/* ───────────────────────────────
+   ACTIONS (Add to Cart, Reserve, etc.)
+─────────────────────────────── */
+.action-panel {
+  margin-top: $space-xl;
+  display: flex;
+  gap: $space-md;
+
+  button {
+    padding: 10px 20px;
+    border-radius: $radius-md;
+    font-size: 0.95rem;
+
+    &.add {
+      @include button-primary;
+    }
+    &.reserve {
+      @include button-secondary;
+    }
+  }
+
+  @include mobile {
+    flex-direction: column;
+    button {
+      width: 100%;
+    }
+  }
+}

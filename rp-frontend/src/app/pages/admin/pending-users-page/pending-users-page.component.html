@@ -1,0 +1,144 @@
+<div class="admin-dashboard-page">
+  <!-- Background Shapes -->
+  <div class="bg-shapes">
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
+    <div class="shape shape-3"></div>
+  </div>
+
+  <div class="admin-container">
+    <!-- Header -->
+    <header class="header-compact">
+      <button class="btn-back-circle" (click)="goBack()" aria-label="Back">←</button>
+      <div class="title-section">
+        <h1 class="marquee-text">Dashboard</h1>
+        <p>System Management & Approvals</p>
+      </div>
+    </header>
+
+    <div class="dashboard-content">
+      <!-- Tabs Navigation -->
+      <div class="premium-tabs">
+        <button class="tab-item" *ngIf="!userService.isTechLead" [class.active]="activeTab === 'users'"
+          (click)="activeTab = 'users'">
+          <i class="fas fa-users"></i>
+          <span>User Approvals</span>
+          <span class="tab-badge" *ngIf="pendingUsers.length > 0">{{ pendingUsers.length }}</span>
+        </button>
+        <button class="tab-item" [class.active]="activeTab === 'rentals'" (click)="activeTab = 'rentals'">
+          <i class="fas fa-clipboard-list"></i>
+          <span>Rental Approvals</span>
+          <span class="tab-badge" *ngIf="pendingRentals.length > 0">{{ pendingRentals.length }}</span>
+        </button>
+      </div>
+
+      <!-- Loading State -->
+      <div class="loading-overlay" *ngIf="loading">
+        <div class="spinner"></div>
+        <p>Fetching pending requests...</p>
+      </div>
+
+      <div class="tab-panel" *ngIf="!loading">
+        <!-- Users Tab -->
+        <div class="panel-content" *ngIf="activeTab === 'users'">
+          <div class="table-container-glass" *ngIf="pendingUsers.length > 0">
+            <table class="premium-table">
+              <thead>
+                <tr>
+                  <th>User Info</th>
+                  <th>Requested Role</th>
+                  <th>Created At</th>
+                  <th>Assign Role</th>
+                  <th class="text-end">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let u of pendingUsers">
+                  <td>
+                    <div class="user-info-cell">
+                      <div class="user-name">{{ u.fullName || u.name }}</div>
+                      <div class="user-email">{{ u.email }}</div>
+                    </div>
+                  </td>
+                  <td>
+                    <span class="role-tag">{{ u.role }}</span>
+                  </td>
+                  <td class="date-cell">{{ u.createdAt | date:'mediumDate' }}</td>
+                  <td>
+                    <div class="select-premium-wrapper">
+                      <select #r class="select-premium">
+                        <option *ngFor="let role of roles" [value]="role" [selected]="role === u.role">
+                          {{ role }}
+                        </option>
+                      </select>
+                    </div>
+                  </td>
+                  <td class="actions-cell">
+                    <button class="btn-action-mini btn-approve" (click)="approve(u, r.value)" title="Approve">
+                      <i class="fas fa-check"></i>
+                    </button>
+                    <button class="btn-action-mini btn-reject" (click)="reject(u)" title="Reject">
+                      <i class="fas fa-times"></i>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div *ngIf="pendingUsers.length === 0" class="empty-state-premium">
+            <div class="empty-icon">👥</div>
+            <h3>No pending users</h3>
+            <p>All user registration requests have been processed.</p>
+          </div>
+        </div>
+
+        <!-- Rentals Tab -->
+        <div class="panel-content" *ngIf="activeTab === 'rentals'">
+          <div class="table-container-glass" *ngIf="pendingRentals.length > 0">
+            <table class="premium-table">
+              <thead>
+                <tr>
+                  <th>Event</th>
+                  <th>Item / Note</th>
+                  <th>Category</th>
+                  <th>Qty</th>
+                  <th class="text-end">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let item of pendingRentals">
+                  <td class="event-cell">{{ item.eventName || 'Event #' + item.eventId }}</td>
+                  <td>
+                    <div class="item-info-cell">
+                      <div class="item-name">{{ item.itemName }}</div>
+                      <div class="item-note" *ngIf="item.overbookNote || item.remark">
+                        <i class="fas fa-sticky-note"></i> {{ item.overbookNote || item.remark }}
+                      </div>
+                    </div>
+                  </td>
+                  <td><span class="category-tag">{{ item.category }}</span></td>
+                  <td class="qty-cell">{{ item.requestedQuantity }}</td>
+                  <td class="actions-cell">
+                    <button class="btn-action-mini btn-approve" (click)="approveRental(item)" title="Approve">
+                      <i class="fas fa-check"></i>
+                    </button>
+                    <button class="btn-action-mini btn-reject" (click)="rejectRental(item)" title="Reject">
+                      <i class="fas fa-times"></i>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div *ngIf="pendingRentals.length === 0" class="empty-state-premium">
+            <div class="empty-icon">📋</div>
+            <h3>No pending rentals</h3>
+            <p>All equipment rental requests have been cleared.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

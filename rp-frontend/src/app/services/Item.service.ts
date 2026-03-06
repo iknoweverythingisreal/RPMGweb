@@ -1,0 +1,95 @@
+// items.service.ts
+import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable } from 'rxjs';
+
+export interface UsageInfo {
+  eventName: string;
+  eventId: number;
+  quantity: number;
+  startDate: string;
+  endDate: string;
+  status: string;
+}
+
+export interface ItemAvailability {
+  total: number;
+  allocated: number;
+  available: number;
+  shortage: number;
+  usageDetails?: UsageInfo[];
+}
+
+export interface Item {
+  id: number;
+  name: string;
+  category: string;
+  availableQuantity: number;
+  totalQuantity: number;
+  brand?: string;
+  model?: string;
+  imageUrl?: string;
+  location: string;
+  price?: number;
+  status?: string;
+  remark?: string;
+  serialControl?: boolean;
+  serial?: string;
+  description?: string;
+  uom?: string;
+  itemName?: string; // API field variation
+  title?: string;    // API field variation
+  originalItems?: Item[]; // For aggregated items
+}
+
+@Injectable({
+  providedIn: 'root'
+})
+export class ItemsService {
+  private apiUrl = '/api/items';
+
+  constructor(private http: HttpClient) { }
+
+  getItems(): Observable<Item[]> {
+    return this.http.get<Item[]>(this.apiUrl);
+  }
+
+  getItemById(id: number): Observable<Item> {
+    return this.http.get<Item>(`${this.apiUrl}/${id}`);
+  }
+
+  searchItems(query: string): Observable<Item[]> {
+    return this.http.get<Item[]>(`${this.apiUrl}/search`, { params: { q: query } });
+  }
+
+  getItemsByCategory(category: string): Observable<Item[]> {
+    return this.http.get<Item[]>(`${this.apiUrl}/category/${category}`);
+  }
+
+  getAvailability(itemId: number, eventId: number, startDate: string, endDate: string): Observable<any> {
+    return this.http.get(`${this.apiUrl}/${itemId}/availability`, {
+      params: { eventId, startDate, endDate }
+    });
+  }
+
+  getBulkAvailability(itemIds: number[], eventId: number, startDate: string, endDate: string): Observable<any[]> {
+    return this.http.post<any[]>(`${this.apiUrl}/availability/bulk`, {
+      itemIds,
+      eventId,
+      startDate,
+      endDate
+    });
+  }
+
+  createItem(item: Partial<Item>): Observable<Item> {
+    return this.http.post<Item>(this.apiUrl, item);
+  }
+
+  deleteItem(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/${id}`);
+  }
+
+  getServiceItems(): Observable<Item[]> {
+    return this.searchItems('External Rental');
+  }
+}

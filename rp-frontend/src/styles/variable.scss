@@ -1,0 +1,60 @@
+/* ======================================
+   VARIABLES — THEME SYSTEM
+   ====================================== */
+
+/* ----- COLORS ----- */
+$color-bg-dark: #020617;
+$color-bg-dark-2: #0b1b33;
+$color-bg-dark-3: #041d42;
+
+$color-glass-light: rgba(255, 255, 255, 0.06);
+$color-glass-border: rgba(255, 255, 255, 0.12);
+
+/* Gradient System */
+$color-bg-gradient-start: #0b1b33;
+$color-bg-gradient-end: #041d42;
+
+/* Primary */
+$color-primary: #2563eb;
+$color-primary-dark: #1e40af;
+$color-primary-light: #3ea6ff;
+
+/* Secondary */
+$color-accent: #3ea6ff;
+
+/* Status */
+$color-success: #22c55e;
+$color-danger: #ef4444;
+$color-warning: #eab308;
+
+/* Text */
+$color-text-light: #f8fafc;
+$color-text-muted: #cbd5e1;
+$color-text-dark: #0f172a;
+$color-text-dim: rgba(255, 255, 255, 0.6);
+
+
+/* Border */
+$color-border: rgba(255,255,255,0.15);
+
+/* ----- SPACING ----- */
+$space-xxs: 4px;
+$space-xs: 6px;
+$space-sm: 10px;
+$space-md: 16px;
+$space-lg: 24px;
+$space-xl: 32px;
+
+/* ----- RADIUS ----- */
+$radius-sm: 6px;
+$radius-md: 10px;
+$radius-lg: 18px;
+$radius-xl: 24px;
+
+/* ----- SHADOW ----- */
+$shadow-soft: 0 4px 18px rgba(0, 0, 0, 0.25);
+$shadow-card: 0 8px 28px rgba(0, 0, 0, 0.35);
+$shadow-glow: 0 0 10px rgba(62, 166, 255, 0.4);
+
+/* ----- FONTS ----- */
+$font-main: 'Inter', 'Kanit', sans-serif;

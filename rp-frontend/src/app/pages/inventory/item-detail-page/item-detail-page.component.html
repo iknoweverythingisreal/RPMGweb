@@ -1,0 +1,99 @@
+<div class="item-detail-container" *ngIf="item">
+  <!-- Header -->
+  <div class="header">
+    <h2>
+      <span *ngIf="item.brand" class="brand">{{ item.brand }} </span>
+      <span *ngIf="item.model" class="model">{{ item.model }} </span>
+      {{ item.name }}
+    </h2>
+    <p class="category">{{ item.category }}</p>
+  </div>
+
+  <!-- Image -->
+  <div class="image-box">
+    <img [src]="item.imageUrl || 'assets/placeholder.jpg'" [alt]="item.name" />
+  </div>
+
+  <!-- Base Info -->
+  <div class="info-section">
+    <p><strong>Category:</strong> {{ item.category }}</p>
+    <p><strong>UoM:</strong> {{ item.uom }}</p>
+    <p><strong>Total Quantity:</strong> {{ item.totalQuantity }}</p>
+    <p><strong>Available:</strong> {{ item.availableQuantity }}</p>
+  </div>
+
+  <hr />
+
+  <!-- ============================= -->
+  <!-- 🔵 AVAILABILITY SECTION       -->
+  <!-- ============================= -->
+  <div class="availability-card" *ngIf="availability()">
+    <h3>Availability (for this event)</h3>
+
+    <div class="availability-details">
+      <div class="row">
+        <span>Total Stock:</span>
+        <strong>{{ availability().totalQuantity }}</strong>
+      </div>
+      <div class="row">
+        <span>Allocated:</span>
+        <strong>{{ availability().allocated }}</strong>
+      </div>
+      <div class="row">
+        <span>Available:</span>
+        <strong>{{ availability().available }}</strong>
+      </div>
+    </div>
+  </div>
+
+  <hr />
+
+  <!-- ============================= -->
+  <!-- 🟣 USAGE HISTORY SECTION      -->
+  <!-- ============================= -->
+  <div class="usage-history-card" *ngIf="usageEvents().length > 0">
+    <h3>Usage History</h3>
+
+    <ul class="usage-list">
+      <li *ngFor="let e of usageEvents()">
+        <div class="event-row">
+          <strong>{{ e.eventName }}</strong>
+          <span>{{ e.startDate | date: 'shortDate' }} → {{ e.endDate | date: 'shortDate' }}</span>
+          <span>Qty: {{ e.allocatedQuantity }}</span>
+        </div>
+      </li>
+    </ul>
+  </div>
+
+  <div *ngIf="usageEvents().length === 0" class="usage-empty">
+    <p>No usage records found for this item.</p>
+  </div>
+
+  <hr />
+
+  <!-- Quantity Selector (ADMIN/MANAGER only) -->
+  <div class="qty-section" *ngIf="isManager">
+    <label>Quantity:</label>
+    <div class="qty-box">
+      <button (click)="changeQty(-1)">–</button>
+      <span>{{ quantity }}</span>
+      <button (click)="changeQty(1)">+</button>
+    </div>
+  </div>
+
+  <!-- Add to Cart (ADMIN/MANAGER only) -->
+  <button class="btn-primary add-cart" *ngIf="isManager" (click)="addToCart()" [disabled]="item.availableQuantity === 0"
+    [class.disabled]="item.availableQuantity === 0">
+    🛒 {{ item.availableQuantity === 0 ? 'Unavailable' : 'Add to Cart' }}
+  </button>
+
+  <!-- Back -->
+  <button class="btn-secondary back-btn" (click)="goBack()">
+    ← Back
+  </button>
+</div>
+
+<!-- Loading / Not Found -->
+<div *ngIf="!item && !isLoading" class="empty">
+  <p>Item not found.</p>
+</div>

@@ -1,0 +1,6 @@
+.topbar{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid #eee;background:#fff}
+.brand{font-weight:700}
+.spacer{flex:1}
+.user{display:flex;align-items:center;gap:8px}
+.user .dot{width:10px;height:10px;border-radius:50%}
+.user button{border:0;background:#ef4444;color:#fff;padding:6px 10px;border-radius:8px;cursor:pointer}

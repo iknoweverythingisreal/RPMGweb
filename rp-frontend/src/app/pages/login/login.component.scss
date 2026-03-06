@@ -1,0 +1,300 @@
+/* ===== Base Setup ===== */
+@use 'variable' as *;
+@use 'mixins' as *;
+@use 'utills' as *;
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+:host {
+  display: block;
+  height: 100vh;
+  background: linear-gradient(135deg, #020617, #0b1b33 60%, #041d42);
+  font-family: $font-main, 'Inter', sans-serif;
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ===== Background Shapes ===== */
+.bg-shapes {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: 1;
+
+  .shape {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.45;
+  }
+
+  .shape-1 {
+    width: 300px;
+    height: 300px;
+    background: #3b82f6;
+    top: -80px;
+    left: -60px;
+  }
+
+  .shape-2 {
+    width: 350px;
+    height: 350px;
+    background: #9333ea;
+    bottom: -100px;
+    right: -50px;
+  }
+
+  .shape-3 {
+    width: 280px;
+    height: 280px;
+    background: #14b8a6;
+    top: 40%;
+    left: 70%;
+    transform: translate(-50%, -50%);
+  }
+}
+
+/* ===== Container ===== */
+.login-container {
+  position: relative;
+  z-index: 10;
+  width: 420px;
+  margin: auto;
+  padding: 30px 32px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+}
+
+/* ===== Logo & Header ===== */
+.logo-container {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+
+  svg {
+    width: 40px;
+    height: 40px;
+    color: #e2e8f0;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 1.6rem;
+    font-weight: 600;
+    color: #fff;
+    letter-spacing: 0.5px;
+  }
+
+  p {
+    margin: 0;
+    color: #cbd5e1;
+    font-size: 0.85rem;
+  }
+}
+
+/* ===== Tabs ===== */
+.tab-navigation {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+  margin-bottom: 22px;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 6px;
+  border-radius: 10px;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 10px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  background: transparent;
+  border: none;
+  color: #cbd5e1;
+  cursor: pointer;
+  transition: 0.25s ease;
+  z-index: 5;
+
+  &.active {
+    color: #fff;
+    font-weight: 600;
+  }
+}
+
+.tab-slider {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: calc(50% - 6px);
+  height: calc(100% - 12px);
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  transition: transform 0.3s ease;
+
+  &.register {
+    transform: translateX(100%);
+  }
+}
+
+/* ===== Forms ===== */
+.form-wrapper {
+  width: 100%;
+}
+
+.login-wrapper {
+  position: relative;
+  z-index: 5;
+  width: 100%;
+  height: 100vh;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+
+.form-container {
+  display: none;
+
+  &.active {
+    display: block;
+    animation: fadeIn 0.35s ease;
+  }
+}
+
+/* Floating label inputs */
+.input-container {
+  position: relative;
+  margin-bottom: 18px;
+
+  .form-input {
+    width: 100%;
+    padding: 14px 16px 14px 44px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.13);
+    background: rgba(0,0,0,0.25);
+    color: #fff;
+    font-size: 0.95rem;
+    transition: .25s;
+
+    &:focus {
+      border-color: #3ea6ff;
+      box-shadow: 0 0 8px rgba(62, 166, 255, 0.4);
+      outline: none;
+    }
+
+    &:not(:placeholder-shown) + .form-label,
+    &:focus + .form-label {
+      top: -8px;
+      left: 14px;
+      font-size: 0.7rem;
+      color: #7dd3fc;
+    }
+  }
+
+  .form-label {
+    position: absolute;
+    top: 13px;
+    left: 44px;
+    color: #cbd5e1;
+    font-size: 0.9rem;
+    pointer-events: none;
+    transition: 0.25s ease;
+  }
+
+  .input-icon {
+    position: absolute;
+    top: 50%;
+    left: 12px;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    color: #94a3b8;
+
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+  }
+}
+
+/* Buttons */
+.btn-primary {
+  width: 100%;
+  padding: 14px;
+  margin-top: 4px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #2563eb, #1e40af);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: 0.25s;
+
+  &:hover {
+    background: linear-gradient(135deg, #1d4ed8, #1e3a8a);
+  }
+
+  &:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+  }
+}
+
+/* Spinner */
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 3px solid rgba(255,255,255,.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Messages */
+.message-container {
+  margin-top: 20px;
+
+  .message {
+    padding: 12px 14px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    &.error {
+      background: rgba(220, 38, 38, 0.2);
+      color: #fecaca;
+    }
+
+    &.success {
+      background: rgba(34, 197, 94, 0.2);
+      color: #bbf7d0;
+    }
+  }
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

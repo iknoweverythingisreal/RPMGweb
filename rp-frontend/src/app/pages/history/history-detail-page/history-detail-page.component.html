@@ -1,0 +1,379 @@
+<div class="history-detail-page">
+    <div class="bg-shapes">
+        <div class="shape shape-1"></div>
+        <div class="shape shape-2"></div>
+        <div class="shape shape-3"></div>
+    </div>
+
+    <div class="history-detail-container">
+        <div class="print-only-header">
+            <div class="print-brand">RP MEDIA EXPORT</div>
+            <h1>{{ event?.title }}</h1>
+            <div class="print-meta">
+                <div class="meta-item"><strong>Date:</strong> {{ event?.startDate }} — {{ event?.endDate }}</div>
+                <div class="meta-item"><strong>Category:</strong> {{ selectedCategory === 'ALL' ? 'All Equipment' :
+                    selectedCategory }}</div>
+                <div class="meta-item" *ngIf="event?.location"><strong>Location:</strong> {{ event.location }}</div>
+            </div>
+            <div class="print-divider"></div>
+        </div>
+
+        <header class="header-premium" *ngIf="userService.user$ | async as user">
+            <div class="header-left">
+                <button class="btn-back-glass" (click)="goBack()" aria-label="Back">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <div class="title-group">
+                    <div class="brand-tag-premium">RP MEDIA</div>
+                    <h1 class="premium-title">{{ event?.title || 'Event Detail' }}</h1>
+                    <div class="subtitle-badge">
+                        <i class="fas fa-history"></i>
+                        <span>Event Summary & History</span>
+                    </div>
+                </div>
+            </div>
+            <div class="header-right">
+                <button class="btn-add-items" *ngIf="!isPastEvent() && userService.isManager && !userService.isTechLead"
+                    (click)="addMoreItems()">
+                    <i class="fas fa-plus"></i>
+                    <span>Add Equipment</span>
+                </button>
+                <div class="badge-status past" *ngIf="isPastEvent()">
+                    <i class="fas fa-clock"></i>
+                    <span>PAST EVENT</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="loading-state" *ngIf="isLoading">
+            <div class="loader-ring"></div>
+            <p>Gathering event data...</p>
+        </div>
+
+        <div class="content-grid" *ngIf="!isLoading">
+            <div class="side-column">
+                <div class="glass-info-card" *ngIf="event">
+                    <div class="card-header-vibrant">
+                        <h2><i class="fas fa-info-circle"></i> Basic Info</h2>
+                    </div>
+                    <div class="info-list">
+                        <div class="info-row">
+                            <span class="label">DATE</span>
+                            <span class="value">{{ event.startDate }} — {{ event.endDate }}</span>
+                        </div>
+                        <div class="info-row" *ngIf="event.location">
+                            <span class="label">LOCATION</span>
+                            <span class="value">{{ event.location }}</span>
+                        </div>
+                        <div class="info-row status">
+                            <span class="label">STATUS</span>
+                            <span class="value-badge" [class.active]="!isPastEvent()">
+                                {{ isPastEvent() ? 'Archived' : 'Active' }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-info-card stats-card">
+                    <div class="card-header-vibrant accent-green">
+                        <h2><i class="fas fa-boxes"></i> Total Equipment</h2>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-box single-stat">
+                            <span class="stat-value">{{ totalItemsCount }}</span>
+                            <span class="stat-label">Total Items</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="main-column">
+                <div class="section-title-row">
+                    <h2><i class="fas fa-boxes"></i> Equipment List</h2>
+                    <div class="action-row-header">
+                        <div class="filter-dropdown-glass">
+                            <select [(ngModel)]="selectedCategory" class="glass-select">
+                                <option value="ALL">All Categories</option>
+                                <option value="SOUND">Sound</option>
+                                <option value="LIGHTING">Lighting</option>
+                                <option value="LED">LED</option>
+                                <option value="IT">IT</option>
+                                <option value="VISUAL">Visual</option>
+                                <option value="SERVICE_ITEM">External Rental</option>
+                            </select>
+                        </div>
+                        <button class="btn-export-pdf-glass" (click)="exportToPDF()">
+                            <i class="fas fa-file-pdf"></i>
+                            <span>PDF</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="empty-list-state" *ngIf="eventItems.length === 0">
+                    <div class="icon-pulse">📦</div>
+                    <h3>No equipment booked</h3>
+                    <p>This event currently has no items assigned.</p>
+                    <!-- <button class="btn-primary-vibrant" (click)="addMoreItems()" *ngIf="!isPastEvent()">
+                        Start Adding
+                    </button> -->
+                </div>
+
+                <div class="booked-items-stack" *ngIf="eventItems.length > 0">
+
+                    <!-- ===== SECTION 1: WAREHOUSE STOCK ===== -->
+                    <div class="section-divider" *ngIf="warehouseItems.length > 0">
+                        <div class="section-badge stock-badge">
+                            <i class="fa-solid fa-warehouse"></i>
+                            <span>WAREHOUSE STOCK</span>
+                            <span class="count-pill">{{ warehouseItems.length }} lines</span>
+                        </div>
+                    </div>
+
+                    <div class="room-section" *ngFor="let group of warehouseGrouped; let i = index"
+                        [style.animation-delay]="(i * 0.1) + 's'">
+                        <div class="room-header-premium">
+                            <div class="room-title-wrapper">
+                                <i class="fas fa-door-open"></i>
+                                <span class="room-name">{{ group.roomName }}</span>
+                                <span class="room-count-badge">{{ group.items.length }}</span>
+                            </div>
+                            <div class="room-divider"></div>
+                        </div>
+
+                        <div class="item-glass-tile stock-tile" *ngFor="let item of group.items">
+                            <div class="tile-content">
+                                <div class="item-info-main">
+                                    <div class="item-name-block">
+                                        <h3 class="name-display">
+                                            <span class="brand" *ngIf="item.brand">{{ item.brand }}</span>
+                                            <span class="model" *ngIf="item.model">{{ item.model }}</span>
+                                            <span class="base-name">{{ item.itemName || item.item?.name || 'Untitled'
+                                                }}</span>
+                                        </h3>
+                                        <div class="badges-row">
+                                            <span class="cat-pill">{{ item.category || item.item?.category || 'General'
+                                                }}</span>
+                                            <span class="badge-stock"><i class="fa-solid fa-warehouse"></i> WH STOCK: {{
+                                                item.allocatedQuantity }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="item-actions-stack">
+                                    <div class="qty-pill-container">
+                                        <div class="qty-label">QUANTITY</div>
+                                        <div class="qty-value-wrapper">
+                                            <div *ngIf="editingItemId !== item.id" class="display-qty"
+                                                (click)="startEditQty(item)">
+                                                {{ item.requestedQuantity || item.allocatedQuantity || 0 }}
+                                            </div>
+                                            <div *ngIf="editingItemId === item.id" class="edit-qty-input">
+                                                <input type="number" [(ngModel)]="editQty" min="1"
+                                                    (keyup.enter)="saveQty(item)" />
+                                                <button (click)="saveQty(item)" class="check"><i
+                                                        class="fas fa-check"></i></button>
+                                                <button (click)="cancelEdit()" class="close"><i
+                                                        class="fas fa-times"></i></button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="tile-actions">
+                                        <ng-container
+                                            *ngIf="!isPastEvent() && (userService.isManager || userService.isTechLead)">
+                                            <button class="btn-tile-delete" (click)="deleteItem(item)"
+                                                title="Remove Item">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                        </ng-container>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Empty warehouse state -->
+                    <div class="empty-section-state" *ngIf="warehouseItems.length === 0 && eventItems.length > 0">
+                        <i class="fa-solid fa-warehouse"></i>
+                        <p>No items from warehouse stock</p>
+                    </div>
+
+                    <!-- ===== SECTION 2: RENTALS & SHORTAGES ===== -->
+                    <div class="section-divider rental-divider" *ngIf="rentalItems.length > 0">
+                        <div class="section-badge rental-badge">
+                            <i class="fa-solid fa-truck-fast"></i>
+                            <span>EXTERNAL RENTALS / SHORTAGES</span>
+                            <span class="count-pill">{{ rentalItems.length }} lines</span>
+                        </div>
+                    </div>
+
+                    <div class="room-section rental-section" *ngFor="let group of rentalGrouped; let i = index"
+                        [style.animation-delay]="(i * 0.1) + 's'">
+                        <div class="room-header-premium rental-room-header">
+                            <div class="room-title-wrapper">
+                                <i class="fas fa-door-open"></i>
+                                <span class="room-name">{{ group.roomName }}</span>
+                                <span class="room-count-badge amber">{{ group.items.length }}</span>
+                            </div>
+                            <div class="room-divider amber"></div>
+                        </div>
+
+                        <div class="item-glass-tile rental-tile"
+                            [class.shortage-tile]="(item.requestedQuantity || 0) > (item.allocatedQuantity || 0)"
+                            *ngFor="let item of group.items">
+                            <div class="tile-content">
+                                <div class="item-info-main">
+                                    <div class="item-name-block">
+                                        <h3 class="name-display">
+                                            <span class="brand" *ngIf="item.brand">{{ item.brand }}</span>
+                                            <span class="model" *ngIf="item.model">{{ item.model }}</span>
+                                            <span class="base-name">{{ item.itemName || item.item?.name || 'Untitled'
+                                                }}</span>
+                                        </h3>
+                                        <div class="badges-row">
+                                            <span class="cat-pill">{{ item.category || item.item?.category || 'General'
+                                                }}</span>
+
+                                            <span class="badge-rental" *ngIf="item.allocatedQuantity === 0">
+                                                <i class="fa-solid fa-truck-fast"></i> FULL RENTAL: {{
+                                                item.requestedQuantity }}
+                                            </span>
+
+                                            <span class="badge-shortage"
+                                                *ngIf="item.allocatedQuantity > 0 && item.requestedQuantity > item.allocatedQuantity">
+                                                <i class="fa-solid fa-triangle-exclamation"></i> SHORTAGE: {{
+                                                (item.requestedQuantity || 0) - (item.allocatedQuantity || 0) }}
+                                                <small>(Stock: {{ item.allocatedQuantity }})</small>
+                                            </span>
+
+                                            <span class="badge-external" *ngIf="item.source === 'RENT_EXTERNAL'">
+                                                <i class="fas fa-truck-loading"></i> EXTERNAL
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="external-rental-details" *ngIf="item.source === 'RENT_EXTERNAL'">
+                                        <div class="remark-row">
+                                            <i class="fas fa-quote-left"></i>
+                                            <span>{{ item.remark || 'No details provided' }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="item-actions-stack">
+                                    <div class="qty-pill-container">
+                                        <div class="qty-label">QUANTITY</div>
+                                        <div class="qty-value-wrapper">
+                                            <div *ngIf="editingItemId !== item.id" class="display-qty"
+                                                (click)="startEditQty(item)">
+                                                {{ item.requestedQuantity || 0 }}
+                                            </div>
+                                            <div *ngIf="editingItemId === item.id" class="edit-qty-input">
+                                                <input type="number" [(ngModel)]="editQty" min="1"
+                                                    (keyup.enter)="saveQty(item)" />
+                                                <button (click)="saveQty(item)" class="check"><i
+                                                        class="fas fa-check"></i></button>
+                                                <button (click)="cancelEdit()" class="close"><i
+                                                        class="fas fa-times"></i></button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="tile-actions">
+                                        <ng-container
+                                            *ngIf="!isPastEvent() && (userService.isManager || userService.isTechLead)">
+                                            <button class="btn-tile-delete" (click)="deleteItem(item)"
+                                                title="Remove Item">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                        </ng-container>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== PRINT REPORT: TWO-TABLE FORMAT ===== -->
+        <div class="warehouse-print-report" *ngIf="eventItems.length > 0">
+
+            <!-- TABLE 1: WAREHOUSE PICKLIST -->
+            <div class="print-section-header warehouse-header">📦 รายการดึงจากคลัง / WAREHOUSE PICKLIST</div>
+
+            <div class="print-room-group" *ngFor="let group of warehouseGrouped">
+                <div class="print-room-header">
+                    <span class="room-label">ROOM:</span>
+                    <span class="room-name">{{ group.roomName }}</span>
+                    <span class="room-qty">({{ group.items.length }} Items)</span>
+                </div>
+                <div class="print-table">
+                    <div class="print-thead">
+                        <div class="col-name">รายการ / DESCRIPTION</div>
+                        <div class="col-qty">จำนวน (QTY)</div>
+                        <div class="col-avail">ในคลัง (STOCK)</div>
+                        <div class="col-cat">หมวดหมู่ / CAT</div>
+                    </div>
+                    <div class="print-item-row" *ngFor="let item of group.items">
+                        <div class="col-name">
+                            <span class="brand" *ngIf="item.brand">{{ item.brand }}</span>
+                            <span class="model" *ngIf="item.model">{{ item.model }}</span>
+                            <span class="item-text">{{ item.itemName || item.item?.name }}</span>
+                        </div>
+                        <div class="col-qty">{{ item.requestedQuantity || item.allocatedQuantity || 0 }}</div>
+                        <div class="col-avail">{{ item.allocatedQuantity || 0 }}</div>
+                        <div class="col-cat">{{ item.category || item.item?.category }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="print-empty" *ngIf="warehouseItems.length === 0">
+                <p>— ไม่มีรายการจากคลัง / No warehouse stock items —</p>
+            </div>
+
+            <!-- TABLE 2: RENTAL ORDER LIST -->
+            <div class="print-section-header rental-header" style="margin-top: 2rem;">🚚 รายการจัดหาภายนอก / EXTERNAL
+                RENTALS & SHORTAGES</div>
+
+            <div class="print-room-group" *ngFor="let group of rentalGrouped">
+                <div class="print-room-header">
+                    <span class="room-label">ROOM:</span>
+                    <span class="room-name">{{ group.roomName }}</span>
+                    <span class="room-qty">({{ group.items.length }} Items)</span>
+                </div>
+                <div class="print-table">
+                    <div class="print-thead">
+                        <div class="col-name">รายการ / DESCRIPTION</div>
+                        <div class="col-qty">ต้องการ (NEEDED)</div>
+                        <div class="col-cat">หมวดหมู่ / CAT</div>
+                        <div class="col-over">หมายเหตุ / NOTE</div>
+                    </div>
+                    <div class="print-item-row rental-print-row" *ngFor="let item of group.items">
+                        <div class="col-name">
+                            <span class="brand" *ngIf="item.brand">{{ item.brand }}</span>
+                            <span class="model" *ngIf="item.model">{{ item.model }}</span>
+                            <span class="item-text">{{ item.itemName || item.item?.name }}</span>
+                            <div class="external-tag" *ngIf="item.source === 'RENT_EXTERNAL'">
+                                [EXTERNAL RENTAL: {{ item.remark }}]
+                            </div>
+                        </div>
+                        <div class="col-qty">{{ item.requestedQuantity || 0 }}</div>
+                        <div class="col-cat">{{ item.category || item.item?.category }}</div>
+                        <div class="col-over">{{ item.remark || '' }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="print-empty" *ngIf="rentalItems.length === 0">
+                <p>— ไม่มีรายการจัดหาภายนอก / No external rental items —</p>
+            </div>
+
+            <div class="print-footer">
+                <p>Generated by RP Media - Warehouse Booking Report</p>
+                <p>Printed on {{ formatDate( (event?.createdAt || '2026-02-23') ) }}</p>
+            </div>
+        </div>
+    </div>
+
+    <button class="fab-calendar-premium" (click)="goToCalendar()">
+        <i class="fas fa-calendar-alt"></i>
+        <span>Calendar</span>
+    </button>
+</div>
