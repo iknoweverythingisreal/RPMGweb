@@ -4,6 +4,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, tap, map, of } from 'rxjs';
 import { UserService } from './user.service';
 import { CurrentUser } from '../core/models/user.model';   // << ใช้ตัวนี้เท่านั้น!
+import { environment } from 'src/environments/environment';
 
 export interface LoginReq {
   email: string;
@@ -34,7 +35,7 @@ export class AuthService {
   // LOGIN
   // =====================================================
   login(body: LoginReq): Observable<LoginRes> {
-    return this.http.post<LoginRes>('/api/auth/login', body).pipe(
+    return this.http.post<LoginRes>(environment.apiUrl + '/api/auth/login', body).pipe(
       tap(res => this.storeSession(res))
     );
   }
@@ -43,7 +44,7 @@ export class AuthService {
   // REGISTER
   // =====================================================
   register(body: any): Observable<any> {
-    return this.http.post('/api/auth/register', body);
+    return this.http.post(environment.apiUrl + '/api/auth/register', body);
   }
 
   // =====================================================
@@ -98,7 +99,7 @@ export class AuthService {
   me(): Observable<CurrentUser | null> {
     if (!this.token) return of(null);
 
-    return this.http.get<any>('/api/auth/me').pipe(
+    return this.http.get<any>(environment.apiUrl + '/api/auth/me').pipe(
       map(res => {
         const user: CurrentUser = {
           id: res.id,

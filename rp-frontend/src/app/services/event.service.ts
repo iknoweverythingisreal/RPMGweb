@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from 'src/environments/environment';
 
 /* ---------- Types สำหรับ entity หลัก ---------- */
 export interface CalendarEvent {
@@ -95,8 +96,8 @@ export class EventService {
 
   // 🔧 ยิงไป backend 8080 ตรง ๆ (ไม่ต้องมี proxy)
   private apiUrl = ''; // Base URL is handled by proxy or empty for same-origin
-  private API_EVENTS = '/api/events';
-  private API_USERS = '/api/users';
+  private API_EVENTS = environment.apiUrl + '/api/events';
+  private API_USERS = environment.apiUrl + '/api/users';
 
   /* ====== CRUD entity ตรง ๆ ====== */
   getEvents(): Observable<CalendarEvent[]> {
@@ -108,7 +109,7 @@ export class EventService {
   }
 
   getTeamupEvents(): Observable<CalendarEvent[]> {
-    return this.http.get<CalendarEvent[]>('/api/events/teamup');
+    return this.http.get<CalendarEvent[]>(environment.apiUrl + '/api/events/teamup');
   }
 
   createEventEntity(event: CalendarEvent): Observable<CalendarEvent> {
@@ -128,11 +129,11 @@ export class EventService {
   }
 
   syncFromTeamup(): Observable<any> {
-    return this.http.get('/api/teamup/sync-changes');
+    return this.http.get(environment.apiUrl + '/api/teamup/sync-changes');
   }
 
   syncFutureEvents(): Observable<any> {
-    return this.http.get('/api/teamup/sync-future', { responseType: 'text' });
+    return this.http.get(environment.apiUrl + '/api/teamup/sync-future', { responseType: 'text' });
   }
 
   /* ====== เมธอดสำหรับหน้า Calendar (DTO) ====== */
@@ -143,7 +144,7 @@ export class EventService {
   }
 
   getOwners(): Observable<CalendarOwner[]> {
-    return this.http.get<CalendarOwner[]>('/api/teamup/owners');
+    return this.http.get<CalendarOwner[]>(environment.apiUrl + '/api/teamup/owners');
   }
 
   // (optional) ดึงอีเวนต์ตามช่วงวัน + กรอง user
@@ -280,7 +281,7 @@ export class EventService {
     reason?: string;
     userId: number;
   }): Observable<string> {
-    return this.http.post('/api/event-items/swap', request, { responseType: 'text' });
+    return this.http.post(environment.apiUrl + '/api/event-items/swap', request, { responseType: 'text' });
   }
 }
 

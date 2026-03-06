@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { SerialActionRequest, LinkUnitsRequest } from '../core/models/serial.model';
+import { environment } from 'src/environments/environment';
 
 export interface SerialUnit {
   itemUnitId: number;
@@ -16,7 +17,7 @@ export interface SerialUnit {
 export class SerialOpsService {
 
   private http = inject(HttpClient);
-  private baseUrl = '/api/events';
+  private baseUrl = environment.apiUrl + '/api/events';
 
   // ✔ NEW: get units assigned to this event-item
   getUnits(eventId: number, eventItemId: number) {

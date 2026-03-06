@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { delay } from 'rxjs/operators';
 import { HttpClient } from '@angular/common/http';
+import { environment } from 'src/environments/environment';
 
 export interface EventItemRequestDTO {
   itemId: string;
@@ -23,15 +24,15 @@ export class EventItemsService {
   }
 
   syncVirtualStorage() {
-    return this.http.post('/api/inventory/auto-sync', {});
+    return this.http.post(environment.apiUrl + '/api/inventory/auto-sync', {});
   }
 
   getAllEventItems() {
-    return this.http.get<any[]>('/api/event-items');
+    return this.http.get<any[]>(environment.apiUrl + '/api/event-items');
   }
 
   getPendingRentals() {
-    return this.http.get<any[]>('/api/event-items/pending');
+    return this.http.get<any[]>(environment.apiUrl + '/api/event-items/pending');
   }
 
   getEventItems(eventId: number): Observable<any[]> {
@@ -41,7 +42,7 @@ export class EventItemsService {
   getAvailability(startDate: string, endDate: string, eventId?: number) {
     const params: any = { startDate, endDate };
     if (eventId) params.excludeEventId = eventId;
-    return this.http.get<any[]>('/api/inventory/availability', { params });
+    return this.http.get<any[]>(environment.apiUrl + '/api/inventory/availability', { params });
   }
 
   approveOverbook(id: number, approverId: number, note: string = '') {

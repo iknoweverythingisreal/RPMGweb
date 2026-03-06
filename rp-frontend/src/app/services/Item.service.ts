@@ -2,6 +2,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from 'src/environments/environment';
 
 export interface UsageInfo {
   eventName: string;
@@ -46,7 +47,7 @@ export interface Item {
   providedIn: 'root'
 })
 export class ItemsService {
-  private apiUrl = '/api/items';
+  private apiUrl = environment.apiUrl + '/api/items';
 
   constructor(private http: HttpClient) { }
 

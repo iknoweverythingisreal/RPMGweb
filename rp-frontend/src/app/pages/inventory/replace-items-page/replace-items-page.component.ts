@@ -7,6 +7,7 @@ import { EventService } from '../../../services/event.service';
 import { UserService } from '../../../services/user.service';
 import { ItemsService } from '../../../services/Item.service';
 import { ToastService } from '../../../services/toast.service';
+import { environment } from 'src/environments/environment';
 
 @Component({
     selector: 'app-replace-items-page',
@@ -125,7 +126,7 @@ export class ReplaceItemsPageComponent implements OnInit {
 
     loadData() {
         // Load All Event Items from event_items table
-        this.http.get<any[]>('/api/event-items').subscribe({
+        this.http.get<any[]>(environment.apiUrl + '/api/event-items').subscribe({
             next: (res) => {
                 console.log('Loaded event items:', res);
                 // Filter logic: Exclude CANCELLED/RETURNED. Show if date is active OR invalid (fail-open).

@@ -5,6 +5,7 @@ import { HttpClient } from '@angular/common/http';
 import { UserService } from '../../../services/user.service';
 import { Router } from '@angular/router';
 import { ToastService } from '../../../services/toast.service';
+import { environment } from 'src/environments/environment';
 
 @Component({
   selector: 'app-dashboard-page',
@@ -39,7 +40,7 @@ export class DashboardPageComponent implements OnInit {
 
   triggerLifecycleUpdate() {
     if (!confirm('Trigger event lifecycle update now?')) return;
-    this.http.post('/api/lifecycle/update', {}).subscribe({
+    this.http.post(environment.apiUrl + '/api/lifecycle/update', {}).subscribe({
       next: () => this.toastService.show('Lifecycle update completed', 'success'),
       error: (err) => this.toastService.show('Failed: ' + (err?.error?.message || err.message), 'error'),
     });
