@@ -366,18 +366,17 @@ export class CalendarPageComponent implements OnInit {
 
   /* ===== Events ===== */
   loadEventsFromAPI(): void {
-    if (this.isLoading) return;
     this.isLoading = true;
 
     // Calculate visible range based on current month/view
     const y = this.currentDate.getFullYear();
     const m = this.currentDate.getMonth();
-    
+
     // We fetch from the start of the padded grid (usually includes some days from prev month)
     const first = new Date(y, m, 1, 12, 0, 0);
     const gridStart = new Date(first);
     gridStart.setDate(first.getDate() - (first.getDay() || 0)); // Start of the week containing the 1st
-    
+
     const gridEnd = new Date(gridStart);
     gridEnd.setDate(gridStart.getDate() + 42); // 6 weeks of display
 
