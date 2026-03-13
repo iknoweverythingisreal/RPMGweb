@@ -38,12 +38,46 @@ export class HistoryListPageComponent implements OnInit {
   ) { }
 
   ngOnInit() {
+    this.initializeFilters();
     this.loadEvents();
+  }
+
+  private initializeFilters() {
+    const currentYear = new Date().getFullYear();
+    this.availableYears = [currentYear - 2, currentYear - 1, currentYear, currentYear + 1, currentYear + 2];
+    this.selectedYear = currentYear;
   }
 
   loadEvents() {
     this.isLoading = true;
-    this.eventService.getEvents().subscribe({
+
+    // Determine range based on active tab and filters
+    const now = new Date();
+    let fromDate: Date, toDate: Date;
+
+    if (this.activeTab === 'upcoming') {
+      fromDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      toDate = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
+    } else if (this.activeTab === 'ongoing') {
+      fromDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
+      toDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7);
+    } else {
+      // Past tab - use filters
+      const year = this.selectedYear || now.getFullYear();
+      if (this.selectedMonth) {
+        const monthIdx = this.months.indexOf(this.selectedMonth);
+        fromDate = new Date(year, monthIdx, 1);
+        toDate = new Date(year, monthIdx + 1, 0);
+      } else {
+        fromDate = new Date(year, 0, 1);
+        toDate = new Date(year, 11, 31);
+      }
+    }
+
+    const from = this.toLocalDate(fromDate);
+    const to = this.toLocalDate(toDate);
+
+    this.eventService.getEventsRange(from, to).subscribe({
       next: (events) => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -72,11 +106,6 @@ export class HistoryListPageComponent implements OnInit {
         this.upcomingEvents.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
         this.pastEvents.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
 
-        // Extract available years for filter
-        const yearSet = new Set<number>();
-        this.pastEvents.forEach(e => yearSet.add(new Date(e.startDate).getFullYear()));
-        this.availableYears = Array.from(yearSet).sort((a, b) => b - a);
-
         this.applyFilters();
         this.isLoading = false;
       },
@@ -87,9 +116,24 @@ export class HistoryListPageComponent implements OnInit {
     });
   }
 
+  private toLocalDate(date: Date): string {
+    const y = date.getFullYear();
+    const m = (date.getMonth() + 1).toString().padStart(2, '0');
+    const d = date.getDate().toString().padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
   setTab(tab: 'upcoming' | 'ongoing' | 'past') {
     this.activeTab = tab;
-    this.applyFilters();
+    this.loadEvents(); // Re-fetch for new tab/range
+  }
+
+  onFilterChange() {
+    if (this.activeTab === 'past') {
+      this.loadEvents(); // Re-fetch for new filter range
+    } else {
+      this.applyFilters();
+    }
   }
 
   applyFilters() {
@@ -105,14 +149,6 @@ export class HistoryListPageComponent implements OnInit {
       const matchesSearch = !q ||
         e.title?.toLowerCase().includes(q) ||
         e.location?.toLowerCase().includes(q);
-
-      // Past tab specific period filtering
-      if (this.activeTab === 'past') {
-        const d = new Date(e.startDate);
-        const matchesYear = !this.selectedYear || d.getFullYear() === this.selectedYear;
-        const matchesMonth = !this.selectedMonth || this.getMonthName(d.getMonth()) === this.selectedMonth;
-        return matchesSearch && matchesYear && matchesMonth;
-      }
 
       return matchesSearch;
     });

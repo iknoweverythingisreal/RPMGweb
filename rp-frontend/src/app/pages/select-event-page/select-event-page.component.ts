@@ -2,7 +2,11 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { EventService } from '../../services/event.service';
+import {
+  EventService,
+  DateTimeHelper,
+  CalendarOwner
+} from '../../services/event.service';
 import { UserService } from '../../services/user.service';
 import { ToastService } from '../../services/toast.service';
 
@@ -45,27 +49,36 @@ export class SelectEventPageComponent implements OnInit {
   }
 
   /**
-   * Load all events from API and sort by date (newest first)
+   * Load events within a relevant window (e.g., current month/view)
    */
   loadEvents() {
     this.isLoading = true;
-    this.eventService.getEvents().subscribe({
+
+    // Calculate window: -1 month to +6 months to cover typical selection needs
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 7, 0);
+
+    const from = DateTimeHelper.toLocalDate(start);
+    const to = DateTimeHelper.toLocalDate(end);
+
+    this.eventService.getEventsRange(from, to).subscribe({
       next: (events) => {
         this.events = events;
-        // Sort by startDate ascending (earliest first)
+        // Sort by startDate
         this.sortedEvents = [...events].sort((a, b) => {
           const dateA = new Date(a.startDate);
           const dateB = new Date(b.startDate);
           return dateA.getTime() - dateB.getTime();
         });
-        this.filteredEvents = this.sortedEvents; // Initialize filtered list
+        this.filteredEvents = this.sortedEvents;
         this.initializeFilters();
-        this.onSearchChange(); // Sync list with initial dropdown states (-1, -1)
+        this.onSearchChange();
         this.isLoading = false;
       },
       error: (err) => {
         console.error('Failed to load events:', err);
-        this.toastService.show('ไม่สามารถโหลด Events ได้: ' + (err?.error?.message || err.message), 'error');
+        this.toastService.show('ไม่สามารถโหลด Events ได้', 'error');
         this.isLoading = false;
       }
     });
@@ -116,14 +129,9 @@ export class SelectEventPageComponent implements OnInit {
     ];
     this.months = thaiMonths.map((label, index) => ({ value: index, label }));
 
-    // Years from events
-    const yearSet = new Set<number>();
-    this.events.forEach(e => {
-      if (e.startDate) {
-        yearSet.add(new Date(e.startDate).getFullYear());
-      }
-    });
-    this.years = Array.from(yearSet).sort((a, b) => b - a);
+    // Years (Standard range to avoid empty dropdown)
+    const currentYear = new Date().getFullYear();
+    this.years = [currentYear - 2, currentYear - 1, currentYear, currentYear + 1, currentYear + 2];
   }
 
   /**

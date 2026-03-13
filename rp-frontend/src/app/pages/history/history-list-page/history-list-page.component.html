@@ -44,12 +44,12 @@
 
             <!-- Past Tab Specific Filters -->
             <div class="quick-filters-past" *ngIf="activeTab === 'past'">
-                <select class="filter-dropdown" [(ngModel)]="selectedYear" (change)="applyFilters()">
+                <select class="filter-dropdown" [(ngModel)]="selectedYear" (change)="onFilterChange()">
                     <option [ngValue]="null">All Years</option>
                     <option *ngFor="let year of availableYears" [ngValue]="year">{{ year }}</option>
                 </select>
 
-                <select class="filter-dropdown" [(ngModel)]="selectedMonth" (change)="applyFilters()">
+                <select class="filter-dropdown" [(ngModel)]="selectedMonth" (change)="onFilterChange()">
                     <option [ngValue]="null">All Months</option>
                     <option *ngFor="let m of months" [ngValue]="m">{{ m }}</option>
                 </select>
