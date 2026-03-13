@@ -94,12 +94,23 @@ public class TeamupIntegrationService {
                     e.setTitle(node.path("title").asText(""));
                     e.setDescription(node.path("notes").asText(""));
 
-                    // --- แปลงวันที่/เวลา ---
+                    // --- Translating date/time ---
                     String startDt = node.path("start_dt").asText("");
                     String endDt = node.path("end_dt").asText("");
                     if (!startDt.isEmpty() && !endDt.isEmpty()) {
                         e.setStartDate(LocalDate.parse(startDt.substring(0, 10)));
                         e.setEndDate(LocalDate.parse(endDt.substring(0, 10)));
+                    }
+
+                    // --- Strip HTML from Notes/Description ---
+                    String rawNotes = node.path("notes").asText("");
+                    if (rawNotes != null) {
+                        // Strip tags, replace &nbsp; with space, and trim
+                        String cleanNotes = rawNotes
+                                .replaceAll("<[^>]*>", "")
+                                .replaceAll("&nbsp;", " ")
+                                .trim();
+                        e.setDescription(cleanNotes);
                     }
 
                     // --- จัดการ Owner (Sub-calendars) ---
@@ -158,9 +169,15 @@ public class TeamupIntegrationService {
                     owner.setName(node.path("name").asText("Unknown"));
                     owner.setIsActive(node.path("active").asBoolean(true));
 
-                    // Map Teamup color index to Hex using our deterministic utility
-                    int colorIndex = node.path("color").asInt(0);
-                    owner.setColorHex(com.rpmedia.backend.util.TeamupColorUtil.getHexColor(colorIndex));
+                    // Map Teamup color index to Hex
+                    // PROTECTION: Only update color if it's currently null or empty to preserve
+                    // manual database fixes
+                    String currentColor = owner.getColorHex();
+                    if (currentColor == null || currentColor.trim().isEmpty()
+                            || currentColor.equalsIgnoreCase("#3a87ad")) {
+                        int colorIndex = node.path("color").asInt(0);
+                        owner.setColorHex(com.rpmedia.backend.util.TeamupColorUtil.getHexColor(colorIndex));
+                    }
 
                     calendarOwnerRepository.save(owner);
                     synced++;

@@ -366,45 +366,52 @@ export class CalendarPageComponent implements OnInit {
 
   /* ===== Events ===== */
   loadEventsFromAPI(): void {
+    if (this.isLoading) return;
     this.isLoading = true;
-    this.eventService.getEvents().subscribe({
-      next: (events: any[]) => {
-        console.log('[DEBUG] Total events from API:', events.length);
-        console.log('[DEBUG] First raw event:', events[0]);
 
-        this.events = events.map(e => {
+    // Calculate visible range based on current month/view
+    const y = this.currentDate.getFullYear();
+    const m = this.currentDate.getMonth();
+    
+    // We fetch from the start of the padded grid (usually includes some days from prev month)
+    const first = new Date(y, m, 1, 12, 0, 0);
+    const gridStart = new Date(first);
+    gridStart.setDate(first.getDate() - (first.getDay() || 0)); // Start of the week containing the 1st
+    
+    const gridEnd = new Date(gridStart);
+    gridEnd.setDate(gridStart.getDate() + 42); // 6 weeks of display
+
+    const from = DateTimeHelper.toLocalDate(gridStart);
+    const to = DateTimeHelper.toLocalDate(gridEnd);
+
+    console.log(`[DEBUG] Fetching events from ${from} to ${to}`);
+
+    this.eventService.getEventsRange(from, to).subscribe({
+      next: (eventsDTO: any[]) => {
+        console.log('[DEBUG] Events received:', eventsDTO.length);
+
+        this.events = eventsDTO.map(e => {
           const startDate = DateTimeHelper.combineDateTime(e.startDate, e.startTime ?? '00:00:00');
           const endDate = DateTimeHelper.combineDateTime(e.endDate, e.endTime ?? '00:00:00');
 
-          // Determine event source strictly
+          // Determine event source
           const isTeamup = !!(e.teamupSubcalendarIds && e.teamupSubcalendarIds.length > 0);
           const source = isTeamup ? 'TEAMUP' : 'INTERNAL';
-
-          // Priority: ownerColorHex (Backend DTO) > ownerColor (Legacy) > Category Color
-          const color = e.ownerColorHex || e.ownerColor || this.getCategoryColor(e.customFields?.category || 'annual_meeting');
 
           return {
             ...e,
             source,
-            color,
+            color: e.ownerColor || e.ownerColorHex || this.getCategoryColor(e.customFields?.category || 'annual_meeting'),
             start: isNaN(+startDate) ? undefined : startDate,
             end: isNaN(+endDate) ? undefined : endDate
           };
         });
 
-        // 🔹 REFRESH selectedEvent to show newest names/data immediately
         if (this.selectedEvent) {
           const updated = this.events.find(ev => ev.id === this.selectedEvent?.id);
-          if (updated) {
-            this.selectedEvent = updated;
-          }
+          if (updated) this.selectedEvent = updated;
         }
 
-        console.log('[DEBUG] Mapped events:', this.events.length);
-        const sample = this.events.find(ev => ev.ownerName);
-        if (sample) {
-          console.log('[DEBUG] Sample mapped event:', sample.id, sample.ownerName, 'colorHex:', sample.ownerColorHex, 'all:', sample.allColors);
-        }
         this.generateCalendar();
         this.isLoading = false;
       },
@@ -1172,7 +1179,7 @@ export class CalendarPageComponent implements OnInit {
   goToToday(): void {
     this.currentDate = new Date();
     this.selectedDate = new Date();
-    this.generateCalendar();
+    this.loadEventsFromAPI();
   }
 
   previousPeriod(): void {
@@ -1185,7 +1192,7 @@ export class CalendarPageComponent implements OnInit {
       d.setDate(d.getDate() - 1);
 
     this.currentDate = d;
-    this.generateCalendar();
+    this.loadEventsFromAPI();
   }
 
   nextPeriod(): void {
@@ -1198,7 +1205,7 @@ export class CalendarPageComponent implements OnInit {
       d.setDate(d.getDate() + 1);
 
     this.currentDate = d;
-    this.generateCalendar();
+    this.loadEventsFromAPI();
   }
 
 
