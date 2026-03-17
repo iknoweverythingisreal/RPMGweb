@@ -8,6 +8,7 @@ import { ItemsService } from '../../../services/Item.service';
 import { UserService } from '../../../services/user.service';
 import { ToastService } from '../../../services/toast.service';
 import { HttpClient } from '@angular/common/http';
+import { environment } from 'src/environments/environment';
 
 @Component({
     selector: 'app-history-detail-page',
@@ -168,7 +169,7 @@ export class HistoryDetailPageComponent implements OnInit {
     }
 
     loadHistoryLogs() {
-        this.http.get<any[]>(`/api/event-history/event/${this.eventId}`).subscribe({
+        this.http.get<any[]>(`${environment.apiUrl}/api/event-history/event/${this.eventId}`).subscribe({
             next: (logs) => {
                 this.historyLogs = (logs || []).sort((a, b) => {
                     const tA = new Date(a?.changedAt || a?.changed_at || a?.createdAt || a?.created_at || 0).getTime();
@@ -204,7 +205,7 @@ export class HistoryDetailPageComponent implements OnInit {
             return;
         }
 
-        this.http.put(`/api/event-items/${item.id}/quantity`, { quantity: this.editQty }, { responseType: 'text' }).subscribe({
+        this.http.put(`${environment.apiUrl}/api/event-items/${item.id}/quantity`, { quantity: this.editQty }, { responseType: 'text' }).subscribe({
             next: () => {
                 this.toastService.show('Quantity updated successfully', 'success');
                 this.editingItemId = null;
@@ -220,7 +221,7 @@ export class HistoryDetailPageComponent implements OnInit {
     deleteItem(item: any) {
         if (!confirm(`Are you sure you want to remove ${item.item?.name || item.itemName}?`)) return;
 
-        this.http.delete<any>(`/api/event-items/${item.id}`).subscribe({
+        this.http.delete<any>(`${environment.apiUrl}/api/event-items/${item.id}`).subscribe({
             next: (res) => {
                 this.toastService.show('Item moved back to cart', 'success');
 

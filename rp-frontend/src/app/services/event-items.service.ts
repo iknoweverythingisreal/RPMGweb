@@ -20,7 +20,7 @@ export class EventItemsService {
 
 
   addBulkItemsToEvent(eventId: number, items: any[]) {
-    return this.http.post(`/api/event-items/bulk/${eventId}`, items);
+    return this.http.post(`${environment.apiUrl}/api/event-items/bulk/${eventId}`, items);
   }
 
   syncVirtualStorage() {
@@ -36,7 +36,7 @@ export class EventItemsService {
   }
 
   getEventItems(eventId: number): Observable<any[]> {
-    return this.http.get<any[]>(`/api/event-items/event/${eventId}`);
+    return this.http.get<any[]>(`${environment.apiUrl}/api/event-items/event/${eventId}`);
   }
 
   getAvailability(startDate: string, endDate: string, eventId?: number) {
@@ -46,19 +46,19 @@ export class EventItemsService {
   }
 
   approveOverbook(id: number, approverId: number, note: string = '') {
-    return this.http.post<any>(`/api/event-items/${id}/approve-overbook`, {}, {
+    return this.http.post<any>(`${environment.apiUrl}/api/event-items/${id}/approve-overbook`, {}, {
       params: { approverId, note }
     });
   }
 
   rejectOverbook(id: number, approverId: number, note: string = '') {
-    return this.http.post<any>(`/api/event-items/${id}/reject-overbook`, {}, {
+    return this.http.post<any>(`${environment.apiUrl}/api/event-items/${id}/reject-overbook`, {}, {
       params: { approverId, note }
     });
   }
 
   requestRentExternal(eventId: number, requesterId: number, itemId: number, qty: number, reason: string = '') {
-    return this.http.post(`/api/event-items/${eventId}/request-rent`, {}, {
+    return this.http.post(`${environment.apiUrl}/api/event-items/${eventId}/request-rent`, {}, {
       params: {
         requesterId,
         itemId,
@@ -70,29 +70,29 @@ export class EventItemsService {
   }
 
   assignToRoom(id: number, roomName: string, quantity: number) {
-    return this.http.post(`/api/event-items/${id}/assign-room`, {}, {
+    return this.http.post(`${environment.apiUrl}/api/event-items/${id}/assign-room`, {}, {
       params: { roomName, quantity },
       responseType: 'text'
     });
   }
 
   deleteRoom(eventId: number, roomName: string) {
-    return this.http.delete(`/api/event-items/event/${eventId}/room`, {
+    return this.http.delete(`${environment.apiUrl}/api/event-items/event/${eventId}/room`, {
       params: { roomName },
       responseType: 'text'
     });
   }
 
   updateQuantity(eventItemId: number, quantity: number) {
-    return this.http.put(`/api/event-items/${eventItemId}/quantity`, { quantity }, { responseType: 'text' });
+    return this.http.put(`${environment.apiUrl}/api/event-items/${eventItemId}/quantity`, { quantity }, { responseType: 'text' });
   }
 
   deleteEventItem(id: number) {
-    return this.http.delete(`/api/event-items/${id}`, { responseType: 'text' });
+    return this.http.delete(`${environment.apiUrl}/api/event-items/${id}`, { responseType: 'text' });
   }
 
   confirmEventItems(eventId: number, confirmedBy: number) {
-    return this.http.put(`/api/event-items/confirm/${eventId}`, {}, {
+    return this.http.put(`${environment.apiUrl}/api/event-items/confirm/${eventId}`, {}, {
       params: { confirmedBy },
       responseType: 'text'
     });

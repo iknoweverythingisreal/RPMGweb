@@ -681,10 +681,11 @@
             flex-direction: column;
             cursor: pointer;
             transition: 0.2s;
+            position: relative; // Ensure relative positioning for child absolute elements if any
 
             @include mobile {
                 min-height: 120px;
-                padding: 4px;
+                padding: 16px 4px 4px 4px; // Add top padding to create space for absolute date-number
             }
 
             &:hover {
@@ -724,10 +725,11 @@
                     background: none;
                     position: absolute;
                     top: 2px;
-                    right: 2px;
+                    right: 2px; // Keep it on the right
                     margin-bottom: 0;
                     color: $color-text-muted;
                     opacity: 0.8;
+                    z-index: 20; // Ensure it stays above the bars-overlay which has z-index 5
                 }
             }
         }

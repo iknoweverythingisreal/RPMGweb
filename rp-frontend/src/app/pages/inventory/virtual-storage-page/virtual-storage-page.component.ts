@@ -8,6 +8,7 @@ import { LinkUnitsRequest } from '../../../core/models/serial.model';
 import { SerialOpsService } from '../../../services/serial-ops.service';
 import { EventBusService } from '../../../services/event-bus.service';
 import { ToastService } from '../../../services/toast.service';
+import { environment } from 'src/environments/environment';
 
 interface ItemAvailability {
   itemId: number;
@@ -64,7 +65,7 @@ export class VirtualStoragePageComponent implements OnInit {
 
   /** โหลด event-items สำหรับ event นี้ */
   loadEventItemsForThisEvent() {
-    this.http.get<any[]>(`/api/event-items/event/${this.selectedEventId}`)
+    this.http.get<any[]>(`${environment.apiUrl}/api/event-items/event/${this.selectedEventId}`)
       .subscribe({
         next: res => {
           this.eventItems = res.map(it => ({
@@ -83,7 +84,7 @@ export class VirtualStoragePageComponent implements OnInit {
     this.isLoading.set(true);
 
     this.http.get<ItemAvailability[]>(
-      `/api/inventory/availability?startDate=${this.startDate}&endDate=${this.endDate}`
+      `${environment.apiUrl}/api/inventory/availability?startDate=${this.startDate}&endDate=${this.endDate}`
     ).subscribe({
       next: (res) => {
         this.items.set(res);
@@ -101,7 +102,7 @@ export class VirtualStoragePageComponent implements OnInit {
     this.isLoading.set(true);
 
     this.http.post(
-      `/api/inventory/virtual-sync?startDate=${this.startDate}&endDate=${this.endDate}`,
+      `${environment.apiUrl}/api/inventory/virtual-sync?startDate=${this.startDate}&endDate=${this.endDate}`,
       {}
     ).subscribe({
       next: () => {

@@ -125,7 +125,7 @@ export class EventService {
   }
 
   deleteEventItem(id: number): Observable<void> {
-    return this.http.delete<void>(`/api/event-items/${id}`);
+    return this.http.delete<void>(`${environment.apiUrl}/api/event-items/${id}`);
   }
 
   syncFromTeamup(): Observable<any> {
@@ -201,30 +201,30 @@ export class EventService {
   // ===== Technical / Manager actions =====
 
   confirmEventItems(eventId: number, confirmedBy: number) {
-    return this.http.put(`/api/event-items/confirm/${eventId}`, null, {
+    return this.http.put(`${environment.apiUrl}/api/event-items/confirm/${eventId}`, null, {
       params: { confirmedBy: confirmedBy.toString() },
     });
   }
 
   markPrepared(eventId: number, preparedBy: number) {
-    return this.http.put(`/api/event-items/${eventId}/prepare`, null, {
+    return this.http.put(`${environment.apiUrl}/api/event-items/${eventId}/prepare`, null, {
       params: { preparedBy: preparedBy.toString() },
     });
   }
 
   markChecked(eventId: number, checkedBy: number) {
-    return this.http.put(`/api/event-items/${eventId}/check`, null, {
+    return this.http.put(`${environment.apiUrl}/api/event-items/${eventId}/check`, null, {
       params: { checkedBy: checkedBy.toString() },
     });
   }
 
   getEventItems(eventId: number) {
-    return this.http.get<any[]>(`/api/event-items/event/${eventId}`);
+    return this.http.get<any[]>(`${environment.apiUrl}/api/event-items/event/${eventId}`);
   }
 
   // 🔹 Event History
   getEventHistory(eventId: number) {
-    return this.http.get<EventHistoryEntry[]>(`/api/event-history/event/${eventId}`);
+    return this.http.get<EventHistoryEntry[]>(`${environment.apiUrl}/api/event-history/event/${eventId}`);
   }
 
   requestRentExternal(eventId: number, requesterId: number, itemId: number, qty: number, reason?: string) {
@@ -233,7 +233,7 @@ export class EventService {
       .set('itemId', itemId.toString())
       .set('qty', qty.toString());
     if (reason) params = params.set('reason', reason);
-    return this.http.post(`/api/event-items/${eventId}/request-rent`, null, { params });
+    return this.http.post(`${environment.apiUrl}/api/event-items/${eventId}/request-rent`, null, { params });
   }
 
   approveRentExternal(eventItemId: number, approverId: number, approved: boolean, note?: string) {
@@ -242,12 +242,12 @@ export class EventService {
       .set('approved', approved.toString());
     if (note) params = params.set('note', note);
 
-    return this.http.put(`/api/event-items/approve-rent/${eventItemId}`, {}, { params });
+    return this.http.put(`${environment.apiUrl}/api/event-items/approve-rent/${eventItemId}`, {}, { params });
   }
 
   // ✅ Manager Reserve Item
   reserveItem(eventId: number, itemId: number, qty: number, userId: number) {
-    return this.http.post(`/api/event-items/${eventId}/reserve`, null, {
+    return this.http.post(`${environment.apiUrl}/api/event-items/${eventId}/reserve`, null, {
       params: {
         itemId: itemId.toString(),
         qty: qty.toString(),
@@ -258,14 +258,14 @@ export class EventService {
 
   // 🔹 Return Flow
   requestReturn(eventId: number, requesterId: number) {
-    return this.http.post(`/api/event-items/return-request/${eventId}`, null, {
+    return this.http.post(`${environment.apiUrl}/api/event-items/return-request/${eventId}`, null, {
       params: { requesterId: requesterId.toString() },
       responseType: 'text'
     });
   }
 
   approveReturn(eventId: number, approverId: number) {
-    return this.http.put(`/api/event-items/return-approve/${eventId}`, null, {
+    return this.http.put(`${environment.apiUrl}/api/event-items/return-approve/${eventId}`, null, {
       params: { approverId: approverId.toString() },
       responseType: 'text'
     });

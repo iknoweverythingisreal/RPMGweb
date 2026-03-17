@@ -9,6 +9,7 @@ import { EventService } from '../../../services/event.service';
 import { ToastService } from '../../../services/toast.service';
 import { Subscription, filter, firstValueFrom } from 'rxjs';
 import { EventItemsService } from '../../../services/event-items.service';
+import { environment } from 'src/environments/environment';
 
 
 @Component({
@@ -766,7 +767,7 @@ export class InventoryPageComponent implements OnInit, OnDestroy {
 
     // ⭐ If editing, update instead of create
     if (this.isEditMode && this.editingItemId) {
-      this.http.put<Item>(`/api/items/${this.editingItemId}`, this.newItem).subscribe({
+      this.http.put<Item>(`${environment.apiUrl}/api/items/${this.editingItemId}`, this.newItem).subscribe({
         next: () => {
           this.toastService.show('✅ Master Stock updated successfully!', 'success');
           this.closeCreateModal();

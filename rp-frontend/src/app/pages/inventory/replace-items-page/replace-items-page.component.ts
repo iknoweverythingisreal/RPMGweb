@@ -330,7 +330,7 @@ export class ReplaceItemsPageComponent implements OnInit {
             const startDate = new Date().toISOString().split('T')[0];
             const endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-            this.http.get<any[]>(`/api/inventory/availability?startDate=${startDate}&endDate=${endDate}`).subscribe(res => {
+            this.http.get<any[]>(`${environment.apiUrl}/api/inventory/availability?startDate=${startDate}&endDate=${endDate}`).subscribe(res => {
                 console.log('Inventory availability response:', res);
 
                 // Group by brand + model
@@ -370,7 +370,7 @@ export class ReplaceItemsPageComponent implements OnInit {
             });
         } else {
             // From Event
-            this.http.get<any[]>(`/api/event-items/event/${eventId}`).subscribe(res => {
+            this.http.get<any[]>(`${environment.apiUrl}/api/event-items/event/${eventId}`).subscribe(res => {
                 this.candidateItems = res.filter(i =>
                     i.category === category &&
                     (i.brand?.trim() || i.model?.trim() || (i.itemName?.trim() && i.itemName !== 'Unknown Item'))
