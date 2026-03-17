@@ -289,7 +289,7 @@ export class HistoryDetailPageComponent implements OnInit {
             return;
         }
 
-        this.itemsService.getBulkAvailability(itemIds, this.eventId, start, end).subscribe({
+        this.itemsService.getBulkAvailability(itemIds, 0, start, end).subscribe({
             next: (results) => {
                 console.log('[HISTORY-DETAIL] Bulk availability received, count:', results?.length);
                 const bulkResults = new Map<number, any>();
