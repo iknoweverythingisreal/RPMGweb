@@ -71,9 +71,20 @@ public interface EventItemRepository extends JpaRepository<EventItem, Long> {
       """)
   List<EventItem> findPendingRentals();
 
-  // ==========================
-  // Serial usage check (Fixed)
-  // ==========================
+  @Query("""
+      select ei.item.id as itemId, sum(ei.allocatedQuantity) as allocated
+      from EventItem ei
+      where (:excludeEventId is null or ei.event.id <> :excludeEventId)
+        and ei.event.startDate <= :toDate
+        and ei.event.endDate >= :fromDate
+        and (ei.status is null or (ei.status <> 'CANCELLED' and ei.status <> 'RETURNED'))
+      group by ei.item.id
+      """)
+  List<Object[]> sumAllocatedOverlapBulk(
+      @Param("excludeEventId") Long excludeEventId,
+      @Param("fromDate") LocalDate fromDate,
+      @Param("toDate") LocalDate toDate);
+
   @Query("""
       SELECT iu.serial
       FROM EventItemUnit eiu

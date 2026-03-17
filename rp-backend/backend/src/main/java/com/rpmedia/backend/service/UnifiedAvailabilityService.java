@@ -78,17 +78,40 @@ public class UnifiedAvailabilityService {
         public List<UnifiedAvailabilityDTO> computeBulk(
                         List<Long> itemIds, Long eventId,
                         LocalDate start, LocalDate end) {
-                return itemIds.stream()
-                                .map(id -> {
-                                        try {
-                                                return compute(id, eventId, start, end);
-                                        } catch (Exception e) {
-                                                // Return a DTO with error info or skip
-                                                UnifiedAvailabilityDTO errorDto = new UnifiedAvailabilityDTO();
-                                                errorDto.setItemId(id);
-                                                errorDto.setItemName("Error: " + e.getMessage());
-                                                return errorDto;
+
+                // 1) Batch find all items
+                List<Item> items = itemRepository.findAllById(itemIds);
+
+                // 2) Batch find all quantity-based allocations
+                java.util.Map<Long, Integer> allocatedMap = qtyService.getAllocatedQuantitiesBulk(eventId, start, end);
+
+                return items.stream()
+                                .map(item -> {
+                                        boolean isSerial = item.getSerialControl() != null && item.getSerialControl();
+
+                                        // If serial, we still need physical lookup (Harder to batch-optimize well
+                                        // without refactoring serialOps)
+                                        // But if not serial, we use our fast map!
+                                        if (isSerial) {
+                                                return compute(item.getId(), eventId, start, end);
                                         }
+
+                                        UnifiedAvailabilityDTO dto = new UnifiedAvailabilityDTO();
+                                        dto.setItemId(item.getId());
+                                        dto.setItemName(item.getName());
+                                        dto.setUom(item.getUom());
+                                        dto.setSerialMode(false);
+
+                                        int total = item.getTotalQuantity() != null ? item.getTotalQuantity() : 0;
+                                        int allocated = allocatedMap.getOrDefault(item.getId(), 0);
+                                        int available = total - allocated;
+
+                                        dto.setTotal(total);
+                                        dto.setAllocated(allocated);
+                                        dto.setAvailable(Math.max(available, 0));
+                                        dto.setShortage(Math.max(-available, 0));
+
+                                        return dto;
                                 })
                                 .toList();
         }
