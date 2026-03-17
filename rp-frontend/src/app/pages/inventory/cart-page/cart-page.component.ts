@@ -174,9 +174,17 @@ export class CartPageComponent implements OnInit {
       this.bookedMap.set(bookedCounts);
       this.pendingRentals.set(rentals);
 
-      // 2. Fetch global warehouse availability (excluding current event's committed inventory)
-      this.eventItemsService.getAvailability(start, end, this.eventId).subscribe((data: any[]) => {
-        console.log('[CART] Warehouse data received:', data.length, 'items (excluding current event bookings)');
+      // 2. Fetch availability only for items in the current cart (targeted, fast)
+      const cartItemSet = new Set<number>();
+      this.cart().forEach(item => item.individualIds.forEach(ind => cartItemSet.add(ind.itemId)));
+      const cartItemIds = Array.from(cartItemSet);
+      if (cartItemIds.length === 0) {
+        this.rawAvailability.set([]);
+        this.runAvailabilityCalculation();
+        return;
+      }
+      this.eventItemsService.getBulkAvailability(cartItemIds, start, end, this.eventId).subscribe((data: any[]) => {
+        console.log('[CART] Warehouse data received:', data.length, 'items (bulk, cart-only)');
         this.rawAvailability.set(data);
         this.runAvailabilityCalculation();
       });

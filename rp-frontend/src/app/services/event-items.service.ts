@@ -45,6 +45,16 @@ export class EventItemsService {
     return this.http.get<any[]>(environment.apiUrl + '/api/inventory/availability', { params });
   }
 
+  getBulkAvailability(itemIds: number[], startDate: string, endDate: string, eventId?: number) {
+    const body = {
+      itemIds,
+      startDate,
+      endDate,
+      eventId
+    };
+    return this.http.post<any[]>(`${environment.apiUrl}/api/items/availability/bulk`, body);
+  }
+
   approveOverbook(id: number, approverId: number, note: string = '') {
     return this.http.post<any>(`${environment.apiUrl}/api/event-items/${id}/approve-overbook`, {}, {
       params: { approverId, note }

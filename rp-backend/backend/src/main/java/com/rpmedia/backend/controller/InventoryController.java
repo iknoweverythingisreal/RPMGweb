@@ -48,13 +48,22 @@ public class InventoryController {
 
         var availabilityResults = unifiedAvailabilityService.computeBulk(itemIds, excludeEventId, startDate, endDate);
 
+        // Pre-fetch items to avoid N+1 queries inside the stream
+        Map<Long, Item> itemMap = new HashMap<>();
+        if (!availabilityResults.isEmpty()) {
+            List<Long> resultIds = availabilityResults.stream().map(dto -> dto.getItemId()).toList();
+            List<Item> items = itemRepository.findAllById(resultIds);
+            for (Item it : items) {
+                itemMap.put(it.getId(), it);
+            }
+        }
+
         return availabilityResults.stream().map(dto -> {
             Map<String, Object> row = new HashMap<>();
             row.put("itemId", dto.getItemId());
             row.put("itemName", dto.getItemName());
 
-            // Re-fetch item for category/brand/model/uom which aren't all in the DTO
-            Item item = itemRepository.findById(dto.getItemId()).orElse(null);
+            Item item = itemMap.get(dto.getItemId());
             if (item != null) {
                 row.put("category", item.getCategory());
                 row.put("brand", item.getBrand());
