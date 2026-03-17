@@ -102,6 +102,10 @@
                                 <option value="SERVICE_ITEM">External Rental</option>
                             </select>
                         </div>
+                        <button class="btn-export-print-glass" (click)="exportToPDF()">
+                            <i class="fas fa-print"></i>
+                            <span>PRINT</span>
+                        </button>
                         <button class="btn-export-pdf-glass" (click)="exportToPDF()">
                             <i class="fas fa-file-pdf"></i>
                             <span>PDF</span>
@@ -155,6 +159,17 @@
                                                 }}</span>
                                             <span class="badge-stock"><i class="fa-solid fa-warehouse"></i> WH STOCK: {{
                                                 item.allocatedQuantity }}</span>
+                                            <span class="badge-avail" *ngIf="availabilityMap().get(item.id)"
+                                                [class.overbooked]="availabilityMap().get(item.id)?.overbooked > 0">
+                                                <i class="fas"
+                                                    [class.fa-check-circle]="availabilityMap().get(item.id)?.overbooked === 0"
+                                                    [class.fa-exclamation-triangle]="availabilityMap().get(item.id)?.overbooked > 0"></i>
+                                                AVAIL: {{ availabilityMap().get(item.id)?.available }}
+                                                <span class="over-text"
+                                                    *ngIf="availabilityMap().get(item.id)?.overbooked > 0">
+                                                    (SHORTAGE: {{ availabilityMap().get(item.id)?.overbooked }})
+                                                </span>
+                                            </span>
                                         </div>
                                     </div>
                                 </div>

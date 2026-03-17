@@ -383,6 +383,31 @@
     }
 }
 
+.btn-export-print-glass {
+    background: rgba(255, 255, 255, 0.05);
+    color: #94a3b8;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 10px 18px;
+    border-radius: 12px;
+    font-weight: 800;
+    font-size: 0.8rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    backdrop-filter: blur(10px);
+
+    &:hover {
+        background: rgba(255, 255, 255, 0.15);
+        color: white;
+        transform: translateY(-3px);
+        border-color: $color-primary-light;
+    }
+}
+
 /* ========= Item Tiles & Room Sections ========= */
 .booked-items-stack {
     display: flex;
@@ -574,6 +599,34 @@
                     align-items: center;
                     gap: 6px;
                     border: 1px solid rgba($color-primary, 0.2);
+                }
+
+                .badge-avail {
+                    background: rgba(16, 185, 129, 0.15);
+                    color: #34d399;
+                    font-size: 0.7rem;
+                    padding: 4px 12px;
+                    border-radius: 8px;
+                    font-weight: 800;
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    border: 1px solid rgba(16, 185, 129, 0.2);
+
+                    &.overbooked {
+                        background: rgba(239, 68, 68, 0.2);
+                        color: #f87171;
+                        border-color: rgba(239, 68, 68, 0.3);
+                        box-shadow: 0 0 15px rgba(239, 68, 68, 0.2);
+
+                        .over-text {
+                            font-weight: 950;
+                        }
+                    }
+
+                    i {
+                        font-size: 0.8rem;
+                    }
                 }
             }
         }
