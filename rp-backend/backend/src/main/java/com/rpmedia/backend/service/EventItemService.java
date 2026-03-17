@@ -201,17 +201,32 @@ public class EventItemService {
             // be a rental
             boolean forceRental = "RENT_EXTERNAL".equals(req.getSource());
 
-            int stockQty = forceRental ? 0 : Math.min(requestedQty, Math.max(0, available));
-            int rentalQty = requestedQty - stockQty;
+            // FIX: For non-serial items, we ALWAYS want to allocate to stock to ensure
+            // global deduction
+            // We only split if it's a serial item (physical constraint) or if forceRental
+            // is true.
+            int stockQty;
+            int rentalQty;
+
+            if (hasSerial || forceRental) {
+                // Serial items or Forced Rental still use the split logic
+                stockQty = forceRental ? 0 : Math.min(requestedQty, Math.max(0, available));
+                rentalQty = requestedQty - stockQty;
+            } else {
+                // Non-serial stock items: ALWAYS allocate full requested qty to stock pool
+                stockQty = requestedQty;
+                rentalQty = 0;
+            }
 
             // Try to handle Stock portion
             if (stockQty > 0) {
-                handleSplitMerging(event, item, stockQty, stockQty, req, results, hasSerial);
+                handleSplitMerging(event, item, stockQty, stockQty, req, results, hasSerial, available);
             }
 
             // Try to handle Rental/Shortage portion
             if (rentalQty > 0) {
-                handleSplitMerging(event, item, rentalQty, 0, req, results, false); // No serials for shortages
+                handleSplitMerging(event, item, rentalQty, 0, req, results, false, available); // No serials for
+                                                                                               // shortages
             }
         }
 
@@ -890,7 +905,7 @@ public class EventItemService {
     }
 
     private void handleSplitMerging(Event event, Item item, int reqQty, int allocQty, EventItemRequestDTO req,
-            List<EventItemDTO> results, boolean hasSerial) {
+            List<EventItemDTO> results, boolean hasSerial, int currentAvailable) {
         boolean incomingIsRental = (allocQty == 0);
 
         // Find compatible unassigned record for merging
@@ -915,6 +930,16 @@ public class EventItemService {
                     existing.setStatus(ItemStatus.PENDING_RENT);
                 }
                 existing.setOverbookQty(existing.getRequestedQuantity());
+            } else {
+                // Update overbook count for stock record if it exceeds available
+                int totalRequested = nvl(existing.getRequestedQuantity());
+                if (totalRequested > currentAvailable) {
+                    existing.setOverbookQty(totalRequested - Math.max(0, currentAvailable));
+                    // Optional: Update overbookStatus if needed
+                    if (existing.getOverbookStatus() == OverbookStatus.NONE) {
+                        existing.setOverbookStatus(OverbookStatus.PENDING);
+                    }
+                }
             }
 
             EventItem merged = eventItemRepository.save(existing);
@@ -942,8 +967,14 @@ public class EventItemService {
             entity.setOverbookStatus(
                     Boolean.TRUE.equals(req.getAutoApprove()) ? OverbookStatus.APPROVED : OverbookStatus.PENDING);
         } else {
-            entity.setOverbookQty(0);
-            entity.setOverbookStatus(OverbookStatus.NONE);
+            // Check for overbooking in new stock record
+            if (reqQty > currentAvailable) {
+                entity.setOverbookQty(reqQty - Math.max(0, currentAvailable));
+                entity.setOverbookStatus(OverbookStatus.PENDING);
+            } else {
+                entity.setOverbookQty(0);
+                entity.setOverbookStatus(OverbookStatus.NONE);
+            }
         }
 
         if (hasSerial && req.getSerials() != null) {
