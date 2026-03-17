@@ -68,8 +68,11 @@ public class ItemAvailabilityService {
         }
 
         public java.util.Map<Long, Integer> getAllocatedQuantitiesBulk(
-                        Long excludeEventId, LocalDate start, LocalDate end) {
-                List<Object[]> results = eventItemRepository.sumAllocatedOverlapBulk(excludeEventId, start, end);
+                        List<Long> itemIds, Long excludeEventId, LocalDate start, LocalDate end) {
+                if (itemIds == null || itemIds.isEmpty())
+                        return new java.util.HashMap<>();
+                List<Object[]> results = eventItemRepository.sumAllocatedOverlapBulk(itemIds, excludeEventId, start,
+                                end);
                 java.util.Map<Long, Integer> map = new java.util.HashMap<>();
                 for (Object[] row : results) {
                         Long itemId = (Long) row[0];

@@ -83,7 +83,8 @@ public class UnifiedAvailabilityService {
                 List<Item> items = itemRepository.findAllById(itemIds);
 
                 // 2) Batch find all quantity-based allocations
-                java.util.Map<Long, Integer> allocatedMap = qtyService.getAllocatedQuantitiesBulk(eventId, start, end);
+                java.util.Map<Long, Integer> allocatedMap = qtyService.getAllocatedQuantitiesBulk(itemIds, eventId,
+                                start, end);
 
                 return items.stream()
                                 .map(item -> {

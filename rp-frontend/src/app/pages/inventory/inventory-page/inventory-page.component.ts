@@ -280,7 +280,7 @@ export class InventoryPageComponent implements OnInit, OnDestroy {
     this.itemsService.getBulkAvailability(allOriginalIds, this.eventId || 0, start, end).subscribe(results => {
       // 1. Create a map of ID -> Availability
       const idToAvail = new Map<number, any>();
-      results.forEach(res => idToAvail.set(res.itemId, res));
+      results.forEach(res => idToAvail.set(Number(res.itemId), res));
 
       // 2. Aggregate availability back to the grouped items
       const groupAvailMap = new Map<number, any>();

@@ -78,9 +78,11 @@ public interface EventItemRepository extends JpaRepository<EventItem, Long> {
         and ei.event.startDate <= :toDate
         and ei.event.endDate >= :fromDate
         and (ei.status is null or (ei.status <> 'CANCELLED' and ei.status <> 'RETURNED'))
+        and (ei.item.id in :itemIds)
       group by ei.item.id
       """)
   List<Object[]> sumAllocatedOverlapBulk(
+      @Param("itemIds") List<Long> itemIds,
       @Param("excludeEventId") Long excludeEventId,
       @Param("fromDate") LocalDate fromDate,
       @Param("toDate") LocalDate toDate);
