@@ -67,9 +67,24 @@ export class SelectEventPageComponent implements OnInit {
         this.events = events;
         // Sort by startDate
         this.sortedEvents = [...events].sort((a, b) => {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const endA = new Date(a.endDate);
+          const endB = new Date(b.endDate);
+          const pastA = endA < today;
+          const pastB = endB < today;
+
+          // Past events go to the bottom
+          if (pastA && !pastB) return 1;
+          if (!pastA && pastB) return -1;
+
+          // Among non-past: sort by startDate ascending (soonest first)
+          // Among past: sort by endDate descending (most recent past first)
           const dateA = new Date(a.startDate);
           const dateB = new Date(b.startDate);
-          return dateA.getTime() - dateB.getTime();
+          return pastA
+            ? dateB.getTime() - dateA.getTime()
+            : dateA.getTime() - dateB.getTime();
         });
         this.filteredEvents = this.sortedEvents;
         this.initializeFilters();
@@ -159,9 +174,30 @@ export class SelectEventPageComponent implements OnInit {
       groups.get(monthYear)!.push(event);
     });
 
-    // Convert to array
+    // Convert to array and sort events within each group: active/upcoming first, past last
     this.groupedEvents = Array.from(groups.entries())
-      .map(([monthYear, events]) => ({ monthYear, events }));
+      .map(([monthYear, eventsInGroup]) => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const sorted = [...eventsInGroup].sort((a, b) => {
+          const endA = new Date(a.endDate);
+          const endB = new Date(b.endDate);
+          const pastA = endA < today;
+          const pastB = endB < today;
+
+          if (pastA && !pastB) return 1;
+          if (!pastA && pastB) return -1;
+
+          const dateA = new Date(a.startDate);
+          const dateB = new Date(b.startDate);
+          return pastA
+            ? dateB.getTime() - dateA.getTime()
+            : dateA.getTime() - dateB.getTime();
+        });
+
+        return { monthYear, events: sorted };
+      });
 
     // Sort: Current Month first, then others descending by date
     this.groupedEvents.sort((a, b) => {

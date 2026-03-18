@@ -42,8 +42,10 @@ export class HistoryDetailPageComponent implements OnInit {
     get warehouseItems() {
         // Warehouse items are strictly items with allocatedQuantity > 0 
         // AND that allocated amount is the full requested amount (if not, it's a shortage).
-        // Actually, for simplicity in "Warehouse", we show what we HAVE from stock.
-        return this.filteredItems.filter(it => Number(it.allocatedQuantity || 0) > 0);
+        return this.filteredItems.filter(it =>
+            Number(it.allocatedQuantity || 0) > 0 &&
+            !it.remark?.startsWith('###NOTE###')
+        );
     }
 
     get rentalItems() {
@@ -51,11 +53,17 @@ export class HistoryDetailPageComponent implements OnInit {
         // 1. Items with 0 allocated OR
         // 2. Items where requested > allocated (The missing part is a shortage/rental)
         return this.filteredItems.filter(it => {
+            if (it.remark?.startsWith('###NOTE###')) return false;
+
             const requested = Number(it.requestedQuantity || 0);
             const allocated = Number(it.allocatedQuantity || 0);
             const isRentalSource = it.source === 'RENT_EXTERNAL' || it.status === 'PENDING_RENT' || it.status === 'RENTED';
             return isRentalSource || allocated === 0 || requested > allocated;
         });
+    }
+
+    get noteItems() {
+        return this.eventItems.filter(it => it.remark?.startsWith('###NOTE###'));
     }
 
     get warehouseGrouped() {
@@ -397,7 +405,8 @@ export class HistoryDetailPageComponent implements OnInit {
         });
     }
 
-    getActionLabel(action: string): string {
+    getActionLabel(action: string, remark?: string): string {
+        if (remark?.startsWith('###NOTE###')) return 'Handover Note';
         const labels: any = {
             'EVENT_CREATED': 'Event Created',
             'ITEMS_BOOKED': 'Items Booked',
@@ -440,5 +449,10 @@ export class HistoryDetailPageComponent implements OnInit {
     exportToPDF() {
         console.log('[HISTORY-DETAIL] Exporting to PDF (window.print)...');
         window.print();
+    }
+
+    getNoteContent(remark: string): string {
+        if (!remark) return '';
+        return remark.replace('###NOTE###', '');
     }
 }

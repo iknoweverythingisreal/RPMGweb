@@ -1585,3 +1585,104 @@
         }
     }
 }
+/* NOTES & HANDOVER SECTION */
+.notes-divider {
+    margin-top: 3rem;
+    .notes-badge {
+        background: rgba(245, 158, 11, 0.15);
+        border: 1px solid rgba(245, 158, 11, 0.3);
+        color: #f59e0b;
+    }
+}
+
+.notes-stack {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+.note-glass-card {
+    background: rgba(245, 158, 11, 0.05);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    border-radius: 16px;
+    padding: 1.5rem;
+    position: relative;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+
+    &:hover {
+        transform: translateY(-5px);
+        background: rgba(245, 158, 11, 0.08);
+        border-color: rgba(245, 158, 11, 0.4);
+    }
+
+    .note-header {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        margin-bottom: 1rem;
+        padding-bottom: 0.8rem;
+        border-bottom: 1px solid rgba(245, 158, 11, 0.2);
+
+        i {
+            color: #f59e0b;
+            font-size: 1.2rem;
+        }
+
+        .note-subject {
+            font-weight: 700;
+            color: #fff;
+            font-size: 1.1rem;
+            flex: 1;
+        }
+
+        .btn-note-delete {
+            background: transparent;
+            border: none;
+            color: rgba(245, 158, 11, 0.4);
+            cursor: pointer;
+            padding: 0.3rem;
+            border-radius: 50%;
+            transition: all 0.2s ease;
+
+            &:hover {
+                color: #ef4444;
+                background: rgba(239, 68, 68, 0.1);
+            }
+        }
+    }
+
+    .note-body {
+        color: rgba(255, 255, 255, 0.8);
+        line-height: 1.6;
+        font-size: 1rem;
+        white-space: pre-wrap;
+    }
+}
+
+/* PRINT STYLES FOR NOTES */
+@media print {
+    .notes-header {
+        background: #fdf2f2 !important;
+        color: #991b1b !important;
+        padding: 0.5rem 1rem !important;
+        border-left: 4px solid #991b1b !important;
+        font-weight: bold;
+    }
+
+    .print-notes-list {
+        margin-top: 1rem;
+        .print-note-item {
+            margin-bottom: 0.8rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px dashed #ddd;
+            
+            strong {
+                color: #000;
+                margin-right: 0.5rem;
+            }
+        }
+    }
+}

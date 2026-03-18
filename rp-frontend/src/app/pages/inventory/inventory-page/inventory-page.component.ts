@@ -57,6 +57,7 @@ export class InventoryPageComponent implements OnInit, OnDestroy {
 
   // Rental Request
   showRentalModal = false;
+  rentalMode: 'RENTAL' | 'NOTE' = 'RENTAL';
   rentalRequest = {
     category: 'SOUND',
     brandModel: '',
@@ -78,7 +79,8 @@ export class InventoryPageComponent implements OnInit, OnDestroy {
     { id: 'LED', name: { en: 'LED', th: 'LED' }, icon: '💡' },
     { id: 'VISUAL', name: { en: 'Visual', th: 'ภาพ' }, icon: '📺' },
     { id: 'LIGHTING', name: { en: 'Lighting', th: 'แสงสว่าง' }, icon: '💡' },
-    { id: 'IT', name: { en: 'IT', th: 'ไอที' }, icon: '💻' }
+    { id: 'IT', name: { en: 'IT', th: 'ไอที' }, icon: '💻' },
+    { id: 'OTHER', name: { en: 'Other', th: 'อื่นๆ' }, icon: '➕' }
   ];
 
   locations = [
@@ -833,9 +835,10 @@ export class InventoryPageComponent implements OnInit, OnDestroy {
 
   closeRentalModal() {
     this.showRentalModal = false;
+    this.rentalMode = 'RENTAL';
     this.rentalRequest = {
       category: 'SOUND',
-      brandModel: '',
+      brandModel: 'N/A',
       itemName: '',
       qty: 1,
       price: 0,
@@ -893,30 +896,36 @@ export class InventoryPageComponent implements OnInit, OnDestroy {
 
       const targetItem = serviceItems.find(i =>
         i.category?.toUpperCase() === this.rentalRequest.category?.toUpperCase()
-      );
+      ) || serviceItems[0]; // Fallback to first service item if category doesn't match
 
       if (!targetItem) {
-        console.error(`No service item found for category: ${this.rentalRequest.category}`);
-        console.log('Available service items:', serviceItems.map(i => ({ id: i.id, name: i.name, category: i.category })));
-        this.toastService.show(
-          `Service Item for ${this.rentalRequest.category} not found. Please contact Admin to create it.`,
-          'error'
-        );
+        this.toastService.show('No service item found for rentals.', 'error');
         return;
       }
 
       console.log('Target service item found:', targetItem);
 
       // 2. Prepare the request payload
-      const combinedName = `[${this.rentalRequest.brandModel || 'N/A'}] ${this.rentalRequest.itemName || 'Unnamed Item'}`;
+      let displayItemName = this.rentalRequest.itemName || 'Unnamed Item';
+      let remark = this.rentalRequest.note || '';
+
+      if (this.rentalMode === 'NOTE') {
+        remark = `###NOTE###${remark}`;
+        // For notes, we don't really need brand/model in the name
+      }
+
+      const combinedName = this.rentalMode === 'NOTE'
+        ? displayItemName
+        : `[${this.rentalRequest.brandModel || 'N/A'}] ${displayItemName}`;
+
       const payload = [{
         itemId: targetItem.id,
-        requestedQuantity: this.rentalRequest.qty,
+        requestedQuantity: this.rentalMode === 'NOTE' ? 1 : this.rentalRequest.qty,
         unitPrice: this.rentalRequest.price || 0,
-        rateType: 'fixed' as const, // Default to fixed for rentals
-        remark: this.rentalRequest.note || '', // Standard remark
-        overbookNote: `${combinedName} (Rental Request) - ${this.rentalRequest.note || 'No additional notes'}`, // Special note for Overbooking
-        qty: this.rentalRequest.qty
+        rateType: 'fixed' as const,
+        remark: remark,
+        overbookNote: `${combinedName} (${this.rentalMode === 'NOTE' ? 'Info Note' : 'Rental'})`,
+        qty: this.rentalMode === 'NOTE' ? 1 : this.rentalRequest.qty
       }];
 
       console.log('Submitting rental request payload:', payload);

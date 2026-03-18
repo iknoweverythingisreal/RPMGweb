@@ -299,6 +299,31 @@
                         </div>
                     </div>
 
+                    <!-- ===== SECTION 3: NOTES & HANDOVER ===== -->
+                    <div class="section-divider notes-divider" *ngIf="noteItems.length > 0">
+                        <div class="section-badge notes-badge">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                            <span>NOTES & HANDOVER</span>
+                            <span class="count-pill">{{ noteItems.length }} notes</span>
+                        </div>
+                    </div>
+
+                    <div class="notes-stack" *ngIf="noteItems.length > 0">
+                        <div class="note-glass-card" *ngFor="let note of noteItems">
+                            <div class="note-header">
+                                <i class="fas fa-sticky-note"></i>
+                                <span class="note-subject">{{ note.itemName || note.item?.name }}</span>
+                                <button class="btn-note-delete" (click)="deleteItem(note)"
+                                    *ngIf="!isPastEvent() && (userService.isManager || userService.isTechLead)">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div class="note-body">
+                                {{ getNoteContent(note.remark) }}
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>
@@ -374,6 +399,17 @@
 
             <div class="print-empty" *ngIf="rentalItems.length === 0">
                 <p>— ไม่มีรายการจัดหาภายนอก / No external rental items —</p>
+            </div>
+
+            <!-- TABLE 3: NOTES & HANDOVER -->
+            <div class="print-section-header notes-header" *ngIf="noteItems.length > 0" style="margin-top: 2rem;">📝
+                บันทึกข้อความ / NOTES & HANDOVER</div>
+
+            <div class="print-notes-list" *ngIf="noteItems.length > 0">
+                <div class="print-note-item" *ngFor="let note of noteItems">
+                    <strong>{{ note.itemName || note.item?.name }}:</strong>
+                    <span>{{ getNoteContent(note.remark) }}</span>
+                </div>
             </div>
 
             <div class="print-footer">
