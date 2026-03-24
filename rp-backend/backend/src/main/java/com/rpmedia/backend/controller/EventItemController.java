@@ -250,4 +250,16 @@ public class EventItemController {
         }
     }
 
+    @PutMapping("/{id}/remark")
+    public ResponseEntity<String> updateRemark(
+            @PathVariable("id") Long id,
+            @RequestBody java.util.Map<String, String> payload) {
+        String remark = payload.get("remark");
+        String customName = payload.get("customName");
+        String customDescription = payload.get("customDescription");
+
+        eventItemService.updateItemDetails(id, remark, customName, customDescription);
+        return ResponseEntity.ok("✅ Item details updated");
+    }
+
 }

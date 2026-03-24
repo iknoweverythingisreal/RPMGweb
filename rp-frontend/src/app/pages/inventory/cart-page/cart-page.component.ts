@@ -17,6 +17,7 @@ interface CartItem {
   qty: number;
   room?: string; // New field
   unitPrice?: number;
+  description?: string;
   isForcedRental?: boolean;
   individualIds: { itemId: number, qty: number, status?: string, source?: string, autoApprove?: boolean }[];
 }
@@ -106,6 +107,7 @@ export class CartPageComponent implements OnInit {
           qty: it.qty,
           room: roomName,
           unitPrice: it.unitPrice || 0,
+          description: it.description || '',
           individualIds: [{ itemId: it.itemId, qty: it.qty, status: it.status, source: it.source, autoApprove: it.autoApprove } as any]
         });
       } else {
@@ -283,7 +285,8 @@ export class CartPageComponent implements OnInit {
         uom: g.uom,
         qty: indv.qty, // Note: if we changed total qty, this needs to be redistributed
         source: indv.source,
-        unitPrice: g.unitPrice
+        unitPrice: g.unitPrice,
+        description: g.description
       }))
     );
     localStorage.setItem('cart', JSON.stringify(flat));
@@ -406,7 +409,7 @@ export class CartPageComponent implements OnInit {
             requestedQuantity: indv.qty,
             unitPrice: group.unitPrice || 0,
             rateType: 'daily',
-            remark: '',
+            remark: group.description || group.itemName || '',
             status: indv.status,
             source: indv.source,
             autoApprove: (indv as any).autoApprove,
@@ -441,5 +444,64 @@ export class CartPageComponent implements OnInit {
   navigateToRoomDirector() {
     const targetUrl = ['/inventory/event', this.eventId.toString(), 'room-assign'];
     this.router.navigate(targetUrl);
+  }
+
+  isExternal(item: any): boolean {
+    if (!item) return false;
+    // For cart items (aggregated)
+    if (item.isForcedRental) return true;
+    const cat = item.category || '';
+    const name = (item.itemName || '').toLowerCase();
+    return cat.includes('RENTAL') || cat === 'OTHER' || name.includes('external');
+  }
+
+  isNote(item: any): boolean {
+    if (!item) return false;
+    const remark = item.remark || item.overbookNote || '';
+    return remark.startsWith('###NOTE###');
+  }
+
+  getNoteContent(item: any): string {
+    const remark = item.remark || item.overbookNote || '';
+    return remark.replace('###NOTE###', '');
+  }
+
+  getTitle(item: any): string {
+    const brand = item.brand || item.item?.brand || '';
+    const model = item.model || item.item?.model || '';
+    const brandModel = `${brand} ${model}`.trim();
+
+    if (this.isNote(item)) return item.itemName || 'Untitled';
+
+    // If we have brand/model, that's the primary title
+    if (brandModel) return brandModel;
+
+    const name = item.itemName || item.item?.name || 'Untitled';
+    const remark = item.remark || '';
+    if (this.isExternal(item)) {
+      if (remark.includes(' | ')) return remark.split(' | ')[0];
+      if (remark && !remark.includes('Rental')) return remark;
+    }
+    return name;
+  }
+
+  getDescription(item: any): string {
+    if (this.isNote(item)) {
+      return this.getNoteContent(item);
+    }
+
+    const title = this.getTitle(item);
+    const itemName = item.itemName || '';
+
+    // If title is Brand/Model, and itemName is something else (like Category), show it as description
+    if (title !== itemName && itemName && !title.includes(itemName)) {
+      return itemName;
+    }
+
+    const remark = item.remark || item.overbookNote || '';
+    if (this.isExternal(item) && remark.includes(' | ')) {
+      return remark.split(' | ')[1];
+    }
+    return item.description || item.item?.description || '';
   }
 }

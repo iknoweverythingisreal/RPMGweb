@@ -39,15 +39,16 @@
 
     <!-- Cart Items List -->
     <div *ngIf="cart().length" class="cart-items-list">
-      <div class="cart-item-card" *ngFor="let item of cart()">
+      <div class="cart-item-card" *ngFor="let item of cart()" [class.external-card]="isExternal(item)">
         <div class="item-info">
           <div class="item-main">
-            <span *ngIf="item.brand" class="brand">{{ item.brand }}</span>
-            <span *ngIf="item.model" class="model">{{ item.model }}</span>
             <h3 class="item-name">
               <span class="forced-rental-badge auto-rental" *ngIf="item.isForcedRental">AUTO RENTAL</span>
-              {{ item.itemName }}
+              {{ getTitle(item) }}
             </h3>
+            <div class="item-description-small" *ngIf="getDescription(item) && getDescription(item) !== getTitle(item)">
+              {{ getDescription(item) }}
+            </div>
           </div>
           <div class="item-meta">
             <span class="category-tag">{{ item.category }}</span>
@@ -60,14 +61,14 @@
 
         <div class="item-actions">
           <div class="stock-info" *ngIf="availabilityMap().get(item.id); let avail">
-            <div class="source-pills" *ngIf="item.isForcedRental">
+            <div class="source-pills" *ngIf="isExternal(item)">
               <div class="source-pill rental-badge active">
                 <i class="fas fa-truck-fast"></i>
                 <span class="lbl">EXTERNAL RENTAL</span>
               </div>
             </div>
 
-            <div class="source-pills" *ngIf="!item.isForcedRental">
+            <div class="source-pills" *ngIf="!isExternal(item)">
               <!-- Remaining Stock Badge -->
               <div class="source-pill stock-total" [class.no-stock]="(avail.remainingStock || 0) <= 0">
                 <span class="lbl">REMAINING</span>
@@ -116,16 +117,19 @@
       </div>
 
       <div class="rentals-list-compact" *ngIf="showRentals()">
-        <div class="rental-card-compact" *ngFor="let item of pendingRentals()">
+        <div class="rental-card-compact" *ngFor="let item of pendingRentals()" [class.external-card]="!isNote(item)"
+          [class.note-card]="isNote(item)">
           <div class="rental-left">
             <span class="status-dot" [class]="item.status?.toLowerCase()"></span>
             <div class="rental-info-mini">
               <div class="rental-name-row">
-                <span class="rental-name">{{ item.itemName || 'External Rental' }}</span>
-                <span class="source-pill">External</span>
+                <i class="fas fa-truck-fast" *ngIf="!isNote(item)" style="color: #f59e0b; margin-right: 8px;"></i>
+                <i class="fas fa-sticky-note" *ngIf="isNote(item)" style="color: #a78bfa; margin-right: 8px;"></i>
+                <span class="rental-name">{{ getTitle(item) }}</span>
+                <span class="source-pill">{{ isNote(item) ? 'Handover Note' : 'External' }}</span>
               </div>
-              <div class="rental-meta-row" *ngIf="item.overbookNote || item.remark">
-                <span class="rental-note">{{ item.overbookNote || item.remark }}</span>
+              <div class="rental-meta-row" *ngIf="getDescription(item)">
+                <span class="rental-note">{{ getDescription(item) }}</span>
               </div>
             </div>
           </div>

@@ -429,18 +429,25 @@ export class InventoryPageComponent implements OnInit, OnDestroy {
     this.router.navigate(['/inventory/event', this.eventId, 'item', itemId]);
   }
 
+  isExternal(item: any): boolean {
+    if (!item) return false;
+    const cat = item.category || '';
+    const name = (item.name || item.itemName || '').toLowerCase();
+    return cat === 'OTHER' || cat === 'External Rental' || name.includes('external');
+  }
+
 
   getStatusColor(item: any): string {
     const avail = this.getAvailabilityForItem(item.id);
     if (avail) {
       const ratio = avail.available / avail.total;
-      if (ratio > 0.5) return '#10b981'; // green
+      if (ratio > 0.5) return '#3b82f6'; // green
       if (ratio > 0) return '#f59e0b'; // orange
       return '#ef4444'; // red
     }
     // Fallback to static data if availability not yet loaded
     const ratio = item.availableQuantity / item.totalQuantity;
-    if (ratio > 0.5) return '#10b981';
+    if (ratio > 0.5) return '#3b82f6';
     if (ratio > 0) return '#f59e0b';
     return '#ef4444';
   }
@@ -621,6 +628,7 @@ export class InventoryPageComponent implements OnInit, OnDestroy {
         unitPrice: 0,
         brand: item.brand,
         model: item.model,
+        description: item.description
       });
     }
   }
@@ -664,7 +672,8 @@ export class InventoryPageComponent implements OnInit, OnDestroy {
           brand: original.brand,
           model: original.model,
           status: 'CONFIRMED',
-          autoApprove: true
+          autoApprove: true,
+          description: original.description
         });
       }
       remaining -= canTake;
@@ -907,13 +916,7 @@ export class InventoryPageComponent implements OnInit, OnDestroy {
 
       // 2. Prepare the request payload
       let displayItemName = this.rentalRequest.itemName || 'Unnamed Item';
-      let remark = this.rentalRequest.note || '';
-
-      if (this.rentalMode === 'NOTE') {
-        remark = `###NOTE###${remark}`;
-        // For notes, we don't really need brand/model in the name
-      }
-
+      let noteText = this.rentalRequest.note || '';
       const combinedName = this.rentalMode === 'NOTE'
         ? displayItemName
         : `[${this.rentalRequest.brandModel || 'N/A'}] ${displayItemName}`;
@@ -923,9 +926,11 @@ export class InventoryPageComponent implements OnInit, OnDestroy {
         requestedQuantity: this.rentalMode === 'NOTE' ? 1 : this.rentalRequest.qty,
         unitPrice: this.rentalRequest.price || 0,
         rateType: 'fixed' as const,
-        remark: remark,
+        remark: this.rentalMode === 'NOTE' ? `###NOTE###${noteText}` : `${combinedName}${noteText ? ' | ' + noteText : ''}`,
         overbookNote: `${combinedName} (${this.rentalMode === 'NOTE' ? 'Info Note' : 'Rental'})`,
-        qty: this.rentalMode === 'NOTE' ? 1 : this.rentalRequest.qty
+        qty: this.rentalMode === 'NOTE' ? 1 : this.rentalRequest.qty,
+        customName: this.rentalMode === 'NOTE' ? (this.rentalRequest.itemName || 'Handover Note') : combinedName,
+        customDescription: noteText || (this.rentalMode === 'NOTE' ? '' : displayItemName)
       }];
 
       console.log('Submitting rental request payload:', payload);

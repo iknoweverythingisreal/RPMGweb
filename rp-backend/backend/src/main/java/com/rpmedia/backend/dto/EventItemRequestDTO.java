@@ -26,4 +26,6 @@ public class EventItemRequestDTO {
     private String status;
     private String source;
     private Boolean autoApprove;
+    private String customName;
+    private String customDescription;
 }

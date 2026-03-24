@@ -1,4 +1,4 @@
 export const environment = {
     production: false,
-    apiUrl: 'https://rpmg.onrender.com'
+    apiUrl: '' // Use empty string for local proxy to localhost:8080
 };

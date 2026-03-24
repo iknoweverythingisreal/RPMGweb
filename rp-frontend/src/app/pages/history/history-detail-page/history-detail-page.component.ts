@@ -42,23 +42,24 @@ export class HistoryDetailPageComponent implements OnInit {
     get warehouseItems() {
         // Warehouse items are strictly items with allocatedQuantity > 0 
         // AND that allocated amount is the full requested amount (if not, it's a shortage).
+        // AND it's NOT an external rental OR customized item
         return this.filteredItems.filter(it =>
             Number(it.allocatedQuantity || 0) > 0 &&
-            !it.remark?.startsWith('###NOTE###')
+            !it.remark?.startsWith('###NOTE###') &&
+            !this.isExternal(it)
         );
     }
 
     get rentalItems() {
         // Rental items are: 
-        // 1. Items with 0 allocated OR
-        // 2. Items where requested > allocated (The missing part is a shortage/rental)
+        // 1. Items marked as external OR customized
+        // 2. Items with 0 allocated OR shortage
         return this.filteredItems.filter(it => {
             if (it.remark?.startsWith('###NOTE###')) return false;
 
             const requested = Number(it.requestedQuantity || 0);
             const allocated = Number(it.allocatedQuantity || 0);
-            const isRentalSource = it.source === 'RENT_EXTERNAL' || it.status === 'PENDING_RENT' || it.status === 'RENTED';
-            return isRentalSource || allocated === 0 || requested > allocated;
+            return this.isExternal(it) || allocated === 0 || requested > allocated;
         });
     }
 
@@ -454,5 +455,63 @@ export class HistoryDetailPageComponent implements OnInit {
     getNoteContent(remark: string): string {
         if (!remark) return '';
         return remark.replace('###NOTE###', '');
+    }
+
+    isExternal(item: any): boolean {
+        if (!item) return false;
+        const cat = (item.category || item.categoryName || '').toUpperCase();
+        const name = (item.itemName || '').toLowerCase();
+        const isRental = item.source === 'RENT_EXTERNAL' || item.status === 'PENDING_RENT' || item.status === 'RENTED';
+
+        // Items with specific categories or explicit rental flags are External
+        return isRental ||
+            cat === 'OTHER' ||
+            cat === 'EXTERNAL RENTAL' ||
+            name.includes('external');
+    }
+
+    isNote(item: any): boolean {
+        if (!item) return false;
+        const remark = item.remark || '';
+        return remark.startsWith('###NOTE###');
+    }
+
+    getTitle(item: any): string {
+        const brand = item.item?.brand || item.brand || '';
+        const model = item.item?.model || item.model || '';
+        const brandModel = `${brand} ${model}`.trim();
+
+        if (this.isNote(item)) return item.itemName || '';
+
+        // If we have brand/model, that's the primary title
+        if (brandModel) return brandModel;
+
+        const name = item.itemName || '';
+        const remark = item.remark || '';
+        if (this.isExternal(item)) {
+            if (remark.includes(' | ')) return remark.split(' | ')[0];
+            if (remark && !remark.includes('Rental')) return remark;
+        }
+        return name;
+    }
+
+    getDescription(item: any): string {
+        if (this.isNote(item)) {
+            return (item.remark || '').replace('###NOTE###', '');
+        }
+
+        const title = this.getTitle(item);
+        const itemName = item.itemName || '';
+
+        // If title is Brand/Model, and itemName is something else (like Category), show it as description
+        if (title !== itemName && itemName && !title.includes(itemName)) {
+            return itemName;
+        }
+
+        const name = item.itemName || item.item?.name || '';
+        if (name.includes(' | ')) {
+            return name.split(' | ')[1];
+        }
+        return item.item?.description || item.remark || '';
     }
 }

@@ -97,6 +97,10 @@ export class EventItemsService {
     return this.http.put(`${environment.apiUrl}/api/event-items/${eventItemId}/quantity`, { quantity }, { responseType: 'text' });
   }
 
+  updateRemark(id: number, remark: string, customName?: string, customDescription?: string) {
+    return this.http.put(`${environment.apiUrl}/api/event-items/${id}/remark`, { remark, customName, customDescription }, { responseType: 'text' });
+  }
+
   deleteEventItem(id: number) {
     return this.http.delete(`${environment.apiUrl}/api/event-items/${id}`, { responseType: 'text' });
   }

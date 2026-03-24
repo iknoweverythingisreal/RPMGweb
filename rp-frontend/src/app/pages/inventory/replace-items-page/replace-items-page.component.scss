@@ -252,8 +252,8 @@
                 bottom: 40px;
                 width: 2px;
                 background: linear-gradient(to bottom,
-                        #10b981 0%,
-                        #10b981 30%,
+                        #3b82f6 0%,
+                        #3b82f6 30%,
                         rgba(59, 130, 246, 0.2) 50%,
                         #3b82f6 70%,
                         #3b82f6 100%);
@@ -300,22 +300,22 @@
                         top: 4px;
                         width: 12px;
                         height: 12px;
-                        background: #10b981;
+                        background: #3b82f6;
                         border-radius: 50%;
                         border: 3px solid #0f172a;
-                        box-shadow: 0 0 15px rgba(16, 185, 129, 0.5);
+                        box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
                     }
 
                     .slot-badge {
-                        background: rgba(16, 185, 129, 0.15);
-                        color: #10b981;
-                        border: 1px solid rgba(16, 185, 129, 0.2);
+                        background: rgba(59, 130, 246, 0.15);
+                        color: #3b82f6;
+                        border: 1px solid rgba(59, 130, 246, 0.2);
                     }
 
                     .pulse-icon {
                         width: 8px;
                         height: 8px;
-                        background: #10b981;
+                        background: #3b82f6;
                         border-radius: 50%;
                         display: inline-block;
                         animation: pulse-green 2s infinite;
@@ -389,7 +389,7 @@
                 }
 
                 i {
-                    color: #10b981;
+                    color: #3b82f6;
                     font-size: 16px;
                 }
             }
@@ -723,7 +723,7 @@
                                 gap: 6px;
 
                                 &.available {
-                                    color: #10b981;
+                                    color: #3b82f6;
                                 }
 
                                 &.out-of-stock {

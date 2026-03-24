@@ -31,6 +31,33 @@ public class DbInspect {
                 }
             }
 
+            System.out.println(">>> Counting event_items:");
+            try (Statement stmt = conn.createStatement()) {
+                try (ResultSet rs = stmt.executeQuery("SELECT count(*) FROM event_items")) {
+                    if (rs.next()) {
+                        System.out.println("  - Count: " + rs.getInt(1));
+                    }
+                }
+            }
+
+            System.out.println(">>> Counting items:");
+            try (Statement stmt = conn.createStatement()) {
+                try (ResultSet rs = stmt.executeQuery("SELECT count(*) FROM items")) {
+                    if (rs.next()) {
+                        System.out.println("  - Count: " + rs.getInt(1));
+                    }
+                }
+            }
+
+            System.out.println(">>> Counting events:");
+            try (Statement stmt = conn.createStatement()) {
+                try (ResultSet rs = stmt.executeQuery("SELECT count(*) FROM events")) {
+                    if (rs.next()) {
+                        System.out.println("  - Count: " + rs.getInt(1));
+                    }
+                }
+            }
+
         } catch (Exception e) {
             System.err.println("!!! Error during DB inspection:");
             e.printStackTrace();

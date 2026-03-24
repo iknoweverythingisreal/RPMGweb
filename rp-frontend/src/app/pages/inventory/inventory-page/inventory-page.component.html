@@ -76,7 +76,8 @@
 
     <!-- Items Grid (Compact 3-Column) -->
     <div class="items-grid compact-3-col">
-      <div class="compact-card" *ngFor="let item of filteredItems()" [class.overbooked-card]="isOverbooked(item)">
+      <div class="compact-card" *ngFor="let item of filteredItems()" [class.overbooked-card]="isOverbooked(item)"
+        [class.external-card]="isExternal(item)">
 
         <!-- Top: Image & Status -->
         <div class="card-thumb" [class.no-image]="!item.imageUrl">
@@ -101,11 +102,11 @@
             {{ item.brand }} {{ item.model }}
           </div>
           <h3 class="item-name">{{ item.name || item.itemName }}</h3>
-          <p class="item-avail" [class.low-stock]="getRemainingQty(item) <= 0">
+          <p class="item-avail" [class.low-stock]="getRemainingQty(item) <= 0" *ngIf="!isExternal(item)">
             <strong>{{ getRemainingQty(item) }}</strong>
             <span class="uom-badge" *ngIf="item.uom">{{ item.uom }}</span>
           </p>
-          <div class="stock-info-tiny">
+          <div class="stock-info-tiny" *ngIf="!isExternal(item)">
             <span>Stock: {{ getAvailabilityForItem(item.id)?.total || item.totalQuantity }}</span>
           </div>
         </div>

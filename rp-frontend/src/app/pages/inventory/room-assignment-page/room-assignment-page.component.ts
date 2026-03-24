@@ -90,16 +90,21 @@ export class RoomAssignmentPageComponent implements OnInit {
             assigned += requested;
           }
 
-          const isRentalSource = it.source === 'RENT_EXTERNAL' || it.status === 'PENDING_RENT' || it.status === 'RENTED';
+          // An item is rental if: explicitly from external rental source, status says rental,
+          // OR allocatedQuantity is 0 (no stock pulled — must be rented)
+          const isRentalSource = it.source === 'RENT_EXTERNAL'
+            || it.status === 'PENDING_RENT'
+            || it.status === 'RENTED';
+          const isAutoRental = !isRentalSource && allocated === 0 && requested > 0;
 
           return {
             ...it,
             requestedQuantity: requested,
             allocatedQuantity: allocated,
             moveQty: requested, // Default to move all for one-click efficiency
-            isStockOnly: !isRentalSource && allocated > 0 && allocated === requested,
-            isRentalOnly: isRentalSource || (allocated === 0 && requested > 0),
-            isShortage: !isRentalSource && allocated < requested && allocated > 0
+            isStockOnly: !isRentalSource && !isAutoRental && allocated > 0 && allocated === requested,
+            isRentalOnly: isRentalSource || isAutoRental,
+            isShortage: !isRentalSource && !isAutoRental && allocated > 0 && allocated < requested
           };
         });
 
@@ -192,6 +197,42 @@ export class RoomAssignmentPageComponent implements OnInit {
     this.executeMove({ ...item, moveQty: qty }, 'Unassigned');
   }
 
+  editRemark(item: any) {
+    const currentRemark = item.remark || item.overbookNote || '';
+    const newRemark = prompt('Edit Remark / Custom Name:', currentRemark);
+    if (newRemark !== null) {
+      this.saveRemark(item, newRemark);
+    }
+  }
+
+  saveRemark(item: any, newRemark: string) {
+    this.isLoading.set(true);
+
+    let remark = newRemark;
+    let customName: string | undefined = newRemark;
+    let customDescription: string | undefined = undefined;
+
+    // 🔹 If it's a Handover Note, ensure the prefix is preserved if they didn't type it
+    if (this.isNote(item)) {
+      if (!remark.startsWith('###NOTE###')) {
+        remark = '###NOTE###' + remark;
+      }
+      customName = undefined; // For notes, we typically use the remark as the primary source or keep customName static
+    }
+
+    // Directly update the details on the existing backend record
+    this.eventItemsService.updateRemark(item.id, remark, customName, customDescription).subscribe({
+      next: () => {
+        this.toastService.show('✅ Item updated', 'success');
+        this.loadItems();
+      },
+      error: (err: any) => {
+        this.toastService.show('❌ Failed to update item', 'error');
+        this.isLoading.set(false);
+      }
+    });
+  }
+
   returnToCart(item: any) {
     if (!this.isManager) {
       this.toastService.show('🚫 Only Managers/Admins can remove items from event', 'error');
@@ -212,13 +253,14 @@ export class RoomAssignmentPageComponent implements OnInit {
 
         cartItems.push({
           itemId: item.itemId,
-          itemName: item.itemName,
+          itemName: this.getTitle(item),
           brand: item.item?.brand || '',
           model: item.item?.model || '',
           category: item.categoryName || item.item?.category?.name || 'Accessories',
           uom: item.item?.uom || 'Unit',
           qty: item.requestedQuantity,
-          unitPrice: item.individualItems?.[0]?.unitPrice || 0 // Try to preserve price if possible
+          unitPrice: item.individualItems?.[0]?.unitPrice || 0, // Try to preserve price if possible
+          description: this.getDescription(item) || item.item?.description || ''
         });
 
         localStorage.setItem('cart', JSON.stringify(cartItems));
@@ -230,6 +272,54 @@ export class RoomAssignmentPageComponent implements OnInit {
         this.toastService.show('❌ Failed to return to cart: ' + this.getErrorMessage(err), 'error');
         this.isLoading.set(false);
       }
+    });
+  }
+
+  deleteAllUnassigned() {
+    if (!this.isManager) {
+      this.toastService.show('🚫 Only Managers/Admins can delete items', 'error');
+      return;
+    }
+
+    const unassigned = this.getUnassignedItems();
+    if (unassigned.length === 0) {
+      this.toastService.show('Pool is already empty', 'info');
+      return;
+    }
+
+    if (!confirm(`Return ALL ${unassigned.length} unassigned items to cart? This removes them from the event pool.`)) {
+      return;
+    }
+
+    this.isLoading.set(true);
+    const raw = localStorage.getItem('cart');
+    const cartItems: any[] = raw ? JSON.parse(raw) : [];
+
+    const deletePromises = unassigned.map(item =>
+      this.eventItemsService.deleteEventItem(item.id).toPromise().then(() => {
+        // Restore item to local cart
+        cartItems.push({
+          itemId: item.itemId,
+          itemName: this.getTitle(item),
+          brand: item.item?.brand || '',
+          model: item.item?.model || '',
+          category: item.categoryName || item.item?.category?.name || 'Accessories',
+          uom: item.item?.uom || 'Unit',
+          qty: item.requestedQuantity,
+          unitPrice: 0,
+          description: this.getDescription(item) || item.item?.description || ''
+        });
+      })
+    );
+
+    Promise.all(deletePromises).then(() => {
+      localStorage.setItem('cart', JSON.stringify(cartItems));
+      this.toastService.show(`🛒 Returned ${unassigned.length} items to cart`, 'success');
+      this.loadItems();
+    }).catch(() => {
+      localStorage.setItem('cart', JSON.stringify(cartItems));
+      this.toastService.show('⚠️ Some items failed to delete', 'error');
+      this.loadItems();
     });
   }
 
@@ -399,6 +489,62 @@ export class RoomAssignmentPageComponent implements OnInit {
     });
   }
 
+  isExternal(item: any): boolean {
+    if (!item) return false;
+    const cat = item.categoryName || item.item?.category?.name || '';
+    const name = (item.itemName || '').toLowerCase();
+    const isRental = item.source === 'RENT_EXTERNAL' || item.status === 'PENDING_RENT' || item.status === 'RENTED';
+    return isRental || cat === 'OTHER' || cat === 'External Rental' || name.includes('external');
+  }
 
+  isNote(item: any): boolean {
+    if (!item) return false;
+    const remark = item.remark || item.overbookNote || '';
+    return remark.startsWith('###NOTE###');
+  }
 
+  getNoteContent(item: any): string {
+    const remark = item.remark || item.overbookNote || '';
+    return remark.replace('###NOTE###', '');
+  }
+
+  getTitle(item: any): string {
+    const brand = item.item?.brand || item.brand || '';
+    const model = item.item?.model || item.model || '';
+    const brandModel = `${brand} ${model}`.trim();
+
+    if (this.isNote(item)) return item.itemName || '';
+
+    // If we have brand/model, that's the primary title
+    if (brandModel) return brandModel;
+
+    // Fallback for external rentals or items without master stock info
+    const name = item.itemName || '';
+    const remark = item.remark || item.overbookNote || '';
+    if (this.isExternal(item)) {
+      if (remark.includes(' | ')) return remark.split(' | ')[0];
+      if (remark && !remark.includes('Rental')) return remark;
+    }
+    return name;
+  }
+
+  getDescription(item: any) {
+    if (this.isNote(item)) {
+      return this.getNoteContent(item);
+    }
+    const remark = item.remark || item.overbookNote || '';
+    if (this.isExternal(item) && remark.includes(' | ')) {
+      return remark.split(' | ')[1];
+    }
+
+    const title = this.getTitle(item);
+    const itemName = item.itemName || '';
+
+    // If title is Brand/Model, and itemName is something else (like Category), show it as description
+    if (title !== itemName && itemName && !title.includes(itemName)) {
+      return itemName;
+    }
+
+    return item.item?.description || remark || '';
+  }
 }

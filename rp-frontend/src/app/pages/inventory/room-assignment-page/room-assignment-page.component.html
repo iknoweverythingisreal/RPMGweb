@@ -71,16 +71,24 @@
                     <i class="fa-solid fa-boxes-stacked"></i>
                     <h2>UNASSIGNED POOL</h2>
                 </div>
-                <span class="count">{{ getUnassignedItems().length }}</span>
+                <div class="header-actions">
+                    <span class="count">{{ getUnassignedItems().length }}</span>
+                    <button class="btn-delete-all" *ngIf="isManager && getUnassignedItems().length > 0"
+                        (click)="deleteAllUnassigned()" title="Delete all unassigned items">
+                        <i class="fa-solid fa-trash-can"></i> DELETE ALL
+                    </button>
+                </div>
             </div>
 
             <div class="pool-list">
                 <div class="pool-category-group" *ngFor="let cat of getPoolCategories()">
                     <div class="cat-header">{{ cat }}</div>
 
-                    <div class="pool-item-row" *ngFor="let item of getItemsInCategory(cat)"
-                        [class.stock-only-row]="item.isStockOnly"
-                        [class.rental-only-row]="item.isRentalOnly || item.isShortage" (click)="quickAssign(item)">
+                    <div class="pool-item-row" *ngFor="let item of getItemsInCategory(cat)" (click)="quickAssign(item)"
+                        [class.stock-only-row]="item.isStockOnly && !isExternal(item) && !item.isShortage"
+                        [class.rental-only-row]="(item.isRentalOnly || (isExternal(item) && !isNote(item))) && !item.isShortage"
+                        [class.shortage-row]="item.isShortage && !isNote(item)" [class.note-only-row]="isNote(item)"
+                        [class.is-customized]="item.remark && !item.isShortage">
 
                         <div class="item-left">
                             <div class="qty-input-wrap" (click)="$event.stopPropagation()">
@@ -90,31 +98,49 @@
                         </div>
 
                         <div class="item-info">
-                            <div class="item-header">
-                                <span class="brand-model">{{ item.brand }} {{ item.model }}</span>
-                                <div class="status-indicators">
-                                    <div class="type-tag stock" *ngIf="item.isStockOnly">
-                                        <i class="fa-solid fa-warehouse"></i>
-                                        <span>WAREHOUSE STOCK</span>
-                                    </div>
-                                    <div class="type-tag rental" *ngIf="item.isRentalOnly || item.isShortage">
-                                        <i class="fa-solid fa-truck-fast"></i>
-                                        <span>{{ item.isRentalOnly ? 'RENTAL' : 'SHORTAGE / RENTAL' }}</span>
-                                    </div>
-                                </div>
+                            <span class="item-name" *ngIf="!isExternal(item) || isNote(item)">{{ getTitle(item)
+                                }}</span>
+                            <span class="item-name category-label" *ngIf="isExternal(item) && !isNote(item)">{{
+                                item.itemName }}</span>
+                            <span class="item-name custom-val"
+                                *ngIf="isExternal(item) && !isNote(item) && getTitle(item) !== item.itemName">
+                                {{ getTitle(item) }}
+                                <i class="fa-solid fa-pen-to-square edit-icon"
+                                    (click)="editRemark(item); $event.stopPropagation()"></i>
+                            </span>
+                            <!-- <span class="customized-badge" *ngIf="item.remark">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> CUSTOM
+                            </span> -->
+
+                            <div class="item-description-small"
+                                *ngIf="!isNote(item) && getDescription(item) && getDescription(item) !== getTitle(item) && getDescription(item) !== item.itemName">
+                                {{ getDescription(item) }}
                             </div>
 
-                            <h3 class="item-name">{{ item.itemName }}</h3>
+                            <div class="availability-tags" *ngIf="!isExternal(item) && !isNote(item)">
+                                <span class="tag-stock" *ngIf="item.allocatedQuantity > 0">
+                                    <i class="fas fa-warehouse"></i> {{ item.allocatedQuantity }} STOCK
+                                </span>
+                                <span class="tag-rental" *ngIf="item.requestedQuantity > item.allocatedQuantity">
+                                    <i class="fas fa-truck-fast"></i> {{ item.requestedQuantity - item.allocatedQuantity
+                                    }} RENTAL
+                                </span>
+                            </div>
 
-                            <div class="item-footer">
-                                <div class="source-pills">
-                                    <span class="type-badge stock" *ngIf="item.allocatedQuantity > 0">
-                                        AVAIL: {{ item.allocatedQuantity }}
-                                    </span>
-                                    <span class="type-badge rental-auto" *ngIf="item.isRentalOnly || item.isShortage">
-                                        REQUIRED: {{ item.requestedQuantity }}
-                                    </span>
-                                </div>
+                            <div class="availability-tags" *ngIf="isExternal(item) && !isNote(item)">
+                                <span class="tag-rental">
+                                    <i class="fas fa-truck-fast"></i> {{ item.requestedQuantity }} EXTERNAL RENTAL
+                                </span>
+                            </div>
+
+                            <div class="availability-tags" *ngIf="isNote(item)">
+                                <span class="tag-note">
+                                    <i class="fas fa-sticky-note"></i> HANDOVER NOTE
+                                </span>
+                            </div>
+
+                            <div class="note-summary" *ngIf="isNote(item)">
+                                {{ getNoteContent(item) }}
                             </div>
                         </div>
 
@@ -173,32 +199,56 @@
 
                     <div class="room-item-list">
                         <div class="room-item-row" *ngFor="let item of getItemsInRoom(room)"
-                            [class.rental-row]="item.isRentalOnly || item.isShortage">
+                            [class.stock-row]="item.isStockOnly && !isNote(item)"
+                            [class.rental-row]="item.isRentalOnly && !isNote(item)"
+                            [class.shortage-row]="item.isShortage && !isNote(item)" [class.note-row]="isNote(item)"
+                            [class.is-customized]="item.remark">
                             <div class="item-visual-col">
                                 <div class="cat-pill" [title]="item.categoryName">
                                     {{ getCategoryIcon(item.categoryName) }}
                                 </div>
                             </div>
-
-                            <div class="item-detail-col">
+                            <div class="item-detail-col" [class.external-rental]="isExternal(item) && !isNote(item)"
+                                [class.handover-note]="isNote(item)">
                                 <div class="item-identity">
-                                    <span class="brand">{{ item.brand }}</span>
-                                    <span class="model">{{ item.model }}</span>
-                                    <span class="row-type-label"
-                                        [class.is-rental]="item.isRentalOnly || item.isShortage">
-                                        {{ item.isStockOnly ? 'WAREHOUSE STOCK' : (item.isShortage ? 'SHORTAGE' :
-                                        'RENTAL') }}
+
+                                    <span class="name" *ngIf="!isExternal(item) || isNote(item)">
+                                        {{ getTitle(item) }}
+                                        <i class="fa-solid fa-pen-to-square edit-icon" *ngIf="!isNote(item)"
+                                            (click)="editRemark(item); $event.stopPropagation()"></i>
                                     </span>
-                                </div>
-                                <div class="item-status-meta">
-                                    <span class="main-qty-badge">{{ item.requestedQuantity }}x</span>
-                                    <div class="availability-tags">
-                                        <span class="tag-stock" *ngIf="item.isStockOnly">
-                                            <i class="fa-solid fa-warehouse"></i> STOCK
+                                    <div class="external-names" *ngIf="isExternal(item) && !isNote(item)">
+                                        <span class="name category-sub">{{ item.itemName }}</span>
+                                        <span class="name custom-main" *ngIf="getTitle(item) !== item.itemName">
+                                            {{ getTitle(item) }}
+                                            <i class="fa-solid fa-pen-to-square edit-icon"
+                                                (click)="editRemark(item); $event.stopPropagation()"></i>
                                         </span>
-                                        <span class="tag-overbook" *ngIf="item.isRentalOnly || item.isShortage">
-                                            <i class="fa-solid fa-truck-fast"></i> {{ item.isShortage ? 'SHORTAGE' :
-                                            'RENTAL' }}
+                                    </div>
+
+                                    <p class="note-text" *ngIf="getDescription(item)">{{ getDescription(item) }}</p>
+
+                                    <span class="row-type-label" *ngIf="!isExternal(item) && !isNote(item)"
+                                        [class.is-stock]="item.isStockOnly" [class.is-rental]="item.isRentalOnly"
+                                        [class.is-shortage]="item.isShortage">
+                                        {{ item.isStockOnly ? 'WAREHOUSE STOCK' : (item.isShortage ? 'PARTIAL STOCK +
+                                        AUTO RENTAL' :
+                                        'AUTO RENTAL') }}
+                                    </span>
+                                    <span class="row-type-label is-rental"
+                                        *ngIf="isExternal(item) && !isNote(item)">EXTERNAL RENTAL</span>
+                                    <span class="row-type-label is-note" *ngIf="isNote(item)">HANDOVER NOTE</span>
+                                </div>
+                                <div class="item-status-meta" *ngIf="!isNote(item)">
+                                    <span class="main-qty-badge">{{ item.requestedQuantity }}x</span>
+                                    <div class="availability-tags" *ngIf="!isExternal(item)">
+                                        <span class="tag-stock" *ngIf="item.allocatedQuantity > 0">
+                                            <i class="fa-solid fa-warehouse"></i> {{ item.allocatedQuantity }} STOCK
+                                        </span>
+                                        <span class="tag-overbook"
+                                            *ngIf="item.requestedQuantity > item.allocatedQuantity">
+                                            <i class="fa-solid fa-truck-fast"></i> {{ item.requestedQuantity -
+                                            item.allocatedQuantity }} RENTAL
                                         </span>
                                     </div>
                                 </div>

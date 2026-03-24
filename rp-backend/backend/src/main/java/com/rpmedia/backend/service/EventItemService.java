@@ -1,6 +1,7 @@
 package com.rpmedia.backend.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.rpmedia.backend.dto.*;
 import com.rpmedia.backend.model.*;
 import com.rpmedia.backend.repository.*;
@@ -201,21 +202,22 @@ public class EventItemService {
             // be a rental
             boolean forceRental = "RENT_EXTERNAL".equals(req.getSource());
 
-            // FIX: For non-serial items, we ALWAYS want to allocate to stock to ensure
-            // global deduction
-            // We only split if it's a serial item (physical constraint) or if forceRental
-            // is true.
             int stockQty;
             int rentalQty;
 
-            if (hasSerial || forceRental) {
-                // Serial items or Forced Rental still use the split logic
-                stockQty = forceRental ? 0 : Math.min(requestedQty, Math.max(0, available));
+            if (forceRental) {
+                // Explicitly forced to rental (e.g. external booking)
+                stockQty = 0;
+                rentalQty = requestedQty;
+            } else if (hasSerial) {
+                // Serial items: split based on actual availability (physical constraint)
+                stockQty = Math.min(requestedQty, Math.max(0, available));
                 rentalQty = requestedQty - stockQty;
             } else {
-                // Non-serial stock items: ALWAYS allocate full requested qty to stock pool
-                stockQty = requestedQty;
-                rentalQty = 0;
+                // Non-serial stock items: split properly using actual available quantity.
+                // Stock gets up to 'available', the rest becomes AUTO_RENTAL (shortage).
+                stockQty = Math.min(requestedQty, Math.max(0, available));
+                rentalQty = requestedQty - stockQty;
             }
 
             // Try to handle Stock portion
@@ -223,7 +225,7 @@ public class EventItemService {
                 handleSplitMerging(event, item, stockQty, stockQty, req, results, hasSerial, available);
             }
 
-            // Try to handle Rental/Shortage portion
+            // Try to handle Rental/Shortage portion (Auto-Rental due to stock shortage)
             if (rentalQty > 0) {
                 handleSplitMerging(event, item, rentalQty, 0, req, results, false, available); // No serials for
                                                                                                // shortages
@@ -479,11 +481,15 @@ public class EventItemService {
     public EventItemDTO toDto(EventItem ei) {
         String itemName = ei.getItem().getName();
 
-        // 🔹 If External Rental, use Remark as Name if generic name is detected
-        if ("RENT_EXTERNAL".equals(ei.getSource()) && ei.getRemark() != null && !ei.getRemark().isEmpty()) {
+        // 🔹 If Metadata has Custom Name, prioritize it
+        if (ei.getMetadata() != null && ei.getMetadata().has("customName")) {
+            itemName = ei.getMetadata().get("customName").asText();
+        } else if ("RENT_EXTERNAL".equals(ei.getSource()) && ei.getRemark() != null && !ei.getRemark().isEmpty()) {
+            // Fallback for legacy items or items that haven't moved to the new metadata
+            // structure
             String lowerName = (itemName != null) ? itemName.toLowerCase() : "";
             if (lowerName.contains("rental") || lowerName.contains("service") || lowerName.contains("external")) {
-                itemName = ei.getRemark(); // Use the custom description (Brand Model etc)
+                itemName = ei.getRemark();
             }
         }
 
@@ -524,6 +530,12 @@ public class EventItemService {
                 .remark(ei.getRemark())
                 .source(ei.getSource())
                 .room(ei.getMetadata() != null && ei.getMetadata().has("room") ? ei.getMetadata().get("room").asText()
+                        : null)
+                .customName(ei.getMetadata() != null && ei.getMetadata().has("customName")
+                        ? ei.getMetadata().get("customName").asText()
+                        : null)
+                .customDescription(ei.getMetadata() != null && ei.getMetadata().has("customDescription")
+                        ? ei.getMetadata().get("customDescription").asText()
                         : null)
                 .build();
     }
@@ -634,13 +646,15 @@ public class EventItemService {
             // 3. Create results
             // Source Event A ALWAYS gets the Target Item
             createInternalEventItem(sourceEvent, targetItem, actualSwapQtyFromTarget, allocToMoveFromTarget,
-                    "Swapped in " + actualSwapQtyFromTarget + " from Event " + targetEvent.getTitle());
+                    "Swapped in " + actualSwapQtyFromTarget + " from Event " + targetEvent.getTitle(), null,
+                    ItemStatus.CONFIRMED, null);
 
             // Target Event B ONLY gets the Source Item if it's a MUTUAL swap
             boolean isMutual = "MUTUAL".equalsIgnoreCase(request.getSwapMode()) || request.getSwapMode() == null;
             if (isMutual) {
                 createInternalEventItem(targetEvent, sourceItem, actualSwapQtyFromSource, allocToMoveFromSource,
-                        "Swapped in " + actualSwapQtyFromSource + " from Event " + sourceEvent.getTitle());
+                        "Swapped in " + actualSwapQtyFromSource + " from Event " + sourceEvent.getTitle(), null,
+                        ItemStatus.CONFIRMED, null);
             }
 
             // LOG
@@ -691,7 +705,8 @@ public class EventItemService {
             entityManager.flush();
 
             createInternalEventItem(sourceEvent, targetItem, actualSwapQty, actualSwapQty,
-                    "Replaced " + actualSwapQty + "x " + sourceItem.getName() + ". Reason: " + request.getReason());
+                    "Replaced " + actualSwapQty + "x " + sourceItem.getName() + ". Reason: " + request.getReason(),
+                    null, ItemStatus.CONFIRMED, null);
 
             // Log
             Map<String, Object> logData = new HashMap<>();
@@ -708,7 +723,8 @@ public class EventItemService {
         }
     }
 
-    private void createInternalEventItem(Event event, Item item, int qty, int allocatedQty, String remark) {
+    private void createInternalEventItem(Event event, Item item, int qty, int allocatedQty, String remark,
+            String sourceStr, ItemStatus status, JsonNode metadata) {
         // Production Fix: Merge with existing item if it already exists in the event
         List<EventItem> list = eventItemRepository.findByEventIdAndItemId(event.getId(), item.getId());
 
@@ -720,12 +736,52 @@ public class EventItemService {
                     boolean existingIsRental = (nvl(ei.getAllocatedQuantity()) == 0);
                     return incomingIsRental == existingIsRental;
                 })
+                .filter(ei -> {
+                    String existingRemark = ei.getRemark() != null ? ei.getRemark() : "";
+                    String incomingRemark = remark != null ? remark : "";
+
+                    // IF handover note, MERGE carefully
+                    if (incomingRemark.startsWith("###NOTE###") || existingRemark.startsWith("###NOTE###")) {
+                        return existingRemark.equals(incomingRemark);
+                    }
+
+                    return existingRemark.equals(incomingRemark);
+                })
+                .filter(ei -> {
+                    // 🔹 DISTINGUISH BY CUSTOM NAME & DESCRIPTION IN METADATA
+                    String existingCN = (ei.getMetadata() != null && ei.getMetadata().has("customName"))
+                            ? ei.getMetadata().get("customName").asText()
+                            : "";
+                    String incomingCN = (metadata != null && metadata.has("customName"))
+                            ? metadata.get("customName").asText()
+                            : "";
+                    if (!existingCN.equals(incomingCN))
+                        return false;
+
+                    String existingCD = (ei.getMetadata() != null && ei.getMetadata().has("customDescription"))
+                            ? ei.getMetadata().get("customDescription").asText()
+                            : "";
+                    String incomingCD = (metadata != null && metadata.has("customDescription"))
+                            ? metadata.get("customDescription").asText()
+                            : "";
+                    return existingCD.equals(incomingCD);
+                })
+                .filter(ei -> {
+                    String existingSource = ei.getSource() != null ? ei.getSource() : "";
+                    String incomingSource = sourceStr != null ? sourceStr : "";
+                    return existingSource.equals(incomingSource);
+                })
                 .findFirst().orElse(null);
 
         if (existing != null) {
             existing.setRequestedQuantity(nvl(existing.getRequestedQuantity()) + qty);
             existing.setAllocatedQuantity(nvl(existing.getAllocatedQuantity()) + allocatedQty);
-            existing.setRemark(existing.getRemark() + " | " + remark);
+            // Merge remark only if not identical and not null, and not a Handover Note
+            String currentRemark = existing.getRemark() != null ? existing.getRemark() : "";
+            if (remark != null && !remark.trim().isEmpty() && !currentRemark.equals(remark)
+                    && !currentRemark.startsWith("###NOTE###")) {
+                existing.setRemark(currentRemark + (currentRemark.isEmpty() ? "" : " | ") + remark);
+            }
             existing.setUpdatedAt(LocalDateTime.now());
             eventItemRepository.save(existing);
             return;
@@ -739,8 +795,18 @@ public class EventItemService {
         entity.setUnitPrice(BigDecimal.ZERO);
         entity.setRateType("NONE");
         entity.setLineTotal(BigDecimal.ZERO);
-        entity.setStatus(ItemStatus.CONFIRMED);
+        entity.setStatus(status != null ? status : ItemStatus.CONFIRMED);
+        entity.setSource(sourceStr);
         entity.setRemark(remark);
+
+        // PRESERVE METADATA (excluding room, which should be null/unassigned here)
+        if (metadata != null && metadata.isObject()) {
+            com.fasterxml.jackson.databind.node.ObjectNode safeMeta = ((com.fasterxml.jackson.databind.node.ObjectNode) metadata)
+                    .deepCopy();
+            safeMeta.remove("room");
+            entity.setMetadata(safeMeta);
+        }
+
         entity.setCreatedAt(LocalDateTime.now());
         entity.setUpdatedAt(LocalDateTime.now());
         entity.setOverbookStatus(OverbookStatus.NONE);
@@ -783,7 +849,8 @@ public class EventItemService {
 
             // 3. Move the 'quantityToMove' (may need another split if it's mixed)
             processMove(source.getEvent(), source.getItem(), quantityToMove, allocatedToMove, roomName,
-                    source.getStatus(), unitPrice, source.getRateType(), "Unassigned from room (split)");
+                    source.getStatus(), unitPrice, source.getRateType(), source.getRemark(), source.getSource(),
+                    source.getMetadata());
 
         } else {
             // --- MOVE ENTIRE RECORD ---
@@ -794,7 +861,7 @@ public class EventItemService {
             if (isUnassigning) {
                 // Return to unassigned pool (merging handles purely stock or purely rental)
                 createInternalEventItem(source.getEvent(), source.getItem(), currentQty, currentAlloc,
-                        "Unassigned from room (entire)");
+                        source.getRemark(), source.getSource(), source.getStatus(), source.getMetadata());
                 eventItemRepository.delete(source);
             } else {
                 // Moving to a room.
@@ -806,17 +873,20 @@ public class EventItemService {
 
                     // Create Stock portion in room
                     processMove(source.getEvent(), source.getItem(), currentAlloc, currentAlloc, roomName,
-                            source.getStatus(), unitPrice, source.getRateType(), "Stock move");
+                            source.getStatus(), unitPrice, source.getRateType(), source.getRemark(),
+                            source.getSource(), source.getMetadata());
 
                     // Create Rental portion in room
                     processMove(source.getEvent(), source.getItem(), currentQty - currentAlloc, 0, roomName,
-                            source.getStatus(), unitPrice, source.getRateType(), "Rental move");
+                            source.getStatus(), unitPrice, source.getRateType(), source.getRemark(),
+                            source.getSource(), source.getMetadata());
 
                     eventItemRepository.delete(source);
                 } else {
                     // Pure record (either all Stock or all Rental)
                     processMove(source.getEvent(), source.getItem(), currentQty, currentAlloc, roomName,
-                            source.getStatus(), unitPrice, source.getRateType(), "Pure move");
+                            source.getStatus(), unitPrice, source.getRateType(), source.getRemark(),
+                            source.getSource(), source.getMetadata());
                     eventItemRepository.delete(source);
                 }
             }
@@ -824,12 +894,12 @@ public class EventItemService {
     }
 
     private void processMove(Event event, Item item, int qty, int alloc, String roomName, ItemStatus status,
-            BigDecimal unitPrice, String rateType, String remark) {
+            BigDecimal unitPrice, String rateType, String remark, String sourceStr, JsonNode metadata) {
         boolean isUnassigning = (roomName == null || roomName.trim().isEmpty()
                 || "Unassigned".equalsIgnoreCase(roomName.trim()));
 
         if (isUnassigning) {
-            createInternalEventItem(event, item, qty, alloc, remark);
+            createInternalEventItem(event, item, qty, alloc, remark, sourceStr, status, metadata);
             return;
         }
 
@@ -845,6 +915,35 @@ public class EventItemService {
                 .filter(ei -> {
                     boolean targetIsRental = (nvl(ei.getAllocatedQuantity()) == 0);
                     return incomingIsRental == targetIsRental;
+                })
+                .filter(ei -> {
+                    String targetRemark = ei.getRemark() != null ? ei.getRemark() : "";
+                    String incomingRemark = remark != null ? remark : "";
+                    return targetRemark.equals(incomingRemark);
+                })
+                .filter(ei -> {
+                    // 🔹 DISTINGUISH BY CUSTOM NAME & DESCRIPTION IN METADATA
+                    String existingCN = (ei.getMetadata() != null && ei.getMetadata().has("customName"))
+                            ? ei.getMetadata().get("customName").asText()
+                            : "";
+                    String incomingCN = (metadata != null && metadata.has("customName"))
+                            ? metadata.get("customName").asText()
+                            : "";
+                    if (!existingCN.equals(incomingCN))
+                        return false;
+
+                    String existingCD = (ei.getMetadata() != null && ei.getMetadata().has("customDescription"))
+                            ? ei.getMetadata().get("customDescription").asText()
+                            : "";
+                    String incomingCD = (metadata != null && metadata.has("customDescription"))
+                            ? metadata.get("customDescription").asText()
+                            : "";
+                    return existingCD.equals(incomingCD);
+                })
+                .filter(ei -> {
+                    String targetSource = ei.getSource() != null ? ei.getSource() : "";
+                    String incomingSource = sourceStr != null ? sourceStr : "";
+                    return targetSource.equals(incomingSource);
                 })
                 .findFirst().orElse(null);
 
@@ -864,10 +963,15 @@ public class EventItemService {
             newRecord.setRateType(rateType != null ? rateType : "fixed");
             newRecord.setLineTotal(unitPrice.multiply(BigDecimal.valueOf(qty)));
             newRecord.setStatus(status);
+            newRecord.setSource(sourceStr);
+            newRecord.setRemark(remark);
             newRecord.setCreatedAt(LocalDateTime.now());
             newRecord.setUpdatedAt(LocalDateTime.now());
 
-            var meta = objectMapper.createObjectNode();
+            com.fasterxml.jackson.databind.node.ObjectNode meta = (metadata != null && metadata.isObject())
+                    ? ((com.fasterxml.jackson.databind.node.ObjectNode) metadata).deepCopy()
+                    : objectMapper.createObjectNode();
+
             meta.put("room", targetRoom);
             newRecord.setMetadata(meta);
 
@@ -916,6 +1020,26 @@ public class EventItemService {
                     boolean existingIsRental = (nvl(ei.getAllocatedQuantity()) == 0);
                     return incomingIsRental == existingIsRental;
                 })
+                .filter(ei -> {
+                    String existingRemark = ei.getRemark() != null ? ei.getRemark() : "";
+                    String incomingRemark = req.getRemark() != null ? req.getRemark() : "";
+                    if (!existingRemark.trim().equalsIgnoreCase(incomingRemark.trim()))
+                        return false;
+
+                    // 🔹 ALSO DISTINGUISH BY CUSTOM NAME & DESCRIPTION IN METADATA
+                    String existingCN = (ei.getMetadata() != null && ei.getMetadata().has("customName"))
+                            ? ei.getMetadata().get("customName").asText()
+                            : "";
+                    String incomingCN = req.getCustomName() != null ? req.getCustomName() : "";
+                    if (!existingCN.equals(incomingCN))
+                        return false;
+
+                    String existingCD = (ei.getMetadata() != null && ei.getMetadata().has("customDescription"))
+                            ? ei.getMetadata().get("customDescription").asText()
+                            : "";
+                    String incomingCD = req.getCustomDescription() != null ? req.getCustomDescription() : "";
+                    return existingCD.equals(incomingCD);
+                })
                 .findFirst().orElse(null);
 
         if (existing != null) {
@@ -958,6 +1082,15 @@ public class EventItemService {
         entity.setLineTotal(entity.getUnitPrice().multiply(BigDecimal.valueOf(reqQty)));
         entity.setRemark(req.getRemark());
         entity.setStatus(incomingIsRental ? ItemStatus.PENDING_RENT : ItemStatus.CONFIRMED);
+
+        // 🔹 Save Custom Name & Description to Metadata
+        com.fasterxml.jackson.databind.node.ObjectNode meta = objectMapper.createObjectNode();
+        if (req.getCustomName() != null)
+            meta.put("customName", req.getCustomName());
+        if (req.getCustomDescription() != null)
+            meta.put("customDescription", req.getCustomDescription());
+        entity.setMetadata(meta);
+
         entity.setCreatedAt(LocalDateTime.now());
         entity.setUpdatedAt(LocalDateTime.now());
 
@@ -983,5 +1116,35 @@ public class EventItemService {
 
         EventItem saved = eventItemRepository.save(entity);
         results.add(toDto(saved));
+    }
+
+    @Transactional
+    public void updateRemark(Long id, String remark) {
+        eventItemRepository.findById(id).ifPresent(ei -> {
+            ei.setRemark(remark);
+            ei.setUpdatedAt(LocalDateTime.now());
+            eventItemRepository.save(ei);
+        });
+    }
+
+    @Transactional
+    public void updateItemDetails(Long id, String remark, String customName, String customDescription) {
+        eventItemRepository.findById(id).ifPresent(ei -> {
+            ei.setRemark(remark);
+
+            com.fasterxml.jackson.databind.node.ObjectNode meta = (ei.getMetadata() != null
+                    && ei.getMetadata().isObject())
+                            ? (com.fasterxml.jackson.databind.node.ObjectNode) ei.getMetadata()
+                            : objectMapper.createObjectNode();
+
+            if (customName != null)
+                meta.put("customName", customName);
+            if (customDescription != null)
+                meta.put("customDescription", customDescription);
+
+            ei.setMetadata(meta);
+            ei.setUpdatedAt(LocalDateTime.now());
+            eventItemRepository.save(ei);
+        });
     }
 }

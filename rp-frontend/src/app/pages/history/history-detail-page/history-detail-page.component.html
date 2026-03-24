@@ -140,32 +140,40 @@
                             <div class="room-divider"></div>
                         </div>
 
-                        <div class="item-glass-tile stock-tile" *ngFor="let item of group.items">
+                        <div class="item-glass-tile stock-tile" *ngFor="let item of group.items"
+                            [class.is-customized]="item.remark" [class.is-note]="isNote(item)">
                             <div class="tile-content">
                                 <div class="item-info-main">
                                     <div class="item-name-block">
                                         <h3 class="name-display">
-                                            <span class="brand" *ngIf="item.brand">{{ item.brand }}</span>
-                                            <span class="model" *ngIf="item.model">{{ item.model }}</span>
-                                            <span class="base-name">{{ item.itemName || item.item?.name || 'Untitled'
-                                                }}</span>
+                                            <span class="base-name">{{ getTitle(item) }}</span>
                                         </h3>
                                         <div class="badges-row">
                                             <span class="cat-pill">{{ item.category || item.item?.category || 'General'
                                                 }}</span>
-                                            <span class="badge-stock"><i class="fa-solid fa-warehouse"></i> WH STOCK: {{
-                                                item.allocatedQuantity }}</span>
-                                            <span class="badge-avail" *ngIf="availabilityMap().get(item.id)"
-                                                [class.overbooked]="availabilityMap().get(item.id)?.overbooked > 0">
-                                                <i class="fas"
-                                                    [class.fa-check-circle]="availabilityMap().get(item.id)?.overbooked === 0"
-                                                    [class.fa-exclamation-triangle]="availabilityMap().get(item.id)?.overbooked > 0"></i>
-                                                AVAIL: {{ availabilityMap().get(item.id)?.available }}
-                                                <span class="over-text"
-                                                    *ngIf="availabilityMap().get(item.id)?.overbooked > 0">
-                                                    (SHORTAGE: {{ availabilityMap().get(item.id)?.overbooked }})
+
+                                            <ng-container *ngIf="!isExternal(item)">
+                                                <span class="badge-stock"><i class="fa-solid fa-warehouse"></i> WH
+                                                    STOCK: {{ item.allocatedQuantity }}</span>
+                                                <span class="badge-avail" *ngIf="availabilityMap().get(item.id)"
+                                                    [class.overbooked]="availabilityMap().get(item.id)?.overbooked > 0">
+                                                    <i class="fas"
+                                                        [class.fa-check-circle]="availabilityMap().get(item.id)?.overbooked === 0"
+                                                        [class.fa-exclamation-triangle]="availabilityMap().get(item.id)?.overbooked > 0"></i>
+                                                    AVAIL: {{ availabilityMap().get(item.id)?.available }}
                                                 </span>
+                                            </ng-container>
+
+                                            <!-- For External/Rental items, show the remark as description if it's not a Note -->
+                                            <span class="badge-rental"
+                                                *ngIf="isExternal(item) && !item.remark?.startsWith('###NOTE###')">
+                                                <i class="fa-solid fa-truck-fast"></i> EXTERNAL RENTAL
                                             </span>
+                                        </div>
+
+                                        <div class="item-description-small"
+                                            *ngIf="getDescription(item) && getDescription(item) !== getTitle(item) && getDescription(item) !== item.itemName">
+                                            {{ getDescription(item) }}
                                         </div>
                                     </div>
                                 </div>
@@ -228,42 +236,44 @@
                         </div>
 
                         <div class="item-glass-tile rental-tile"
-                            [class.shortage-tile]="(item.requestedQuantity || 0) > (item.allocatedQuantity || 0)"
-                            *ngFor="let item of group.items">
+                            [class.shortage-tile]="(item.requestedQuantity || 0) > (item.allocatedQuantity || 0) && !isExternal(item)"
+                            [class.note-tile]="isNote(item)" [class.is-customized]="item.remark"
+                            [class.is-note]="isNote(item)" *ngFor="let item of group.items">
                             <div class="tile-content">
                                 <div class="item-info-main">
                                     <div class="item-name-block">
                                         <h3 class="name-display">
-                                            <span class="brand" *ngIf="item.brand">{{ item.brand }}</span>
-                                            <span class="model" *ngIf="item.model">{{ item.model }}</span>
-                                            <span class="base-name">{{ item.itemName || item.item?.name || 'Untitled'
-                                                }}</span>
+                                            <span class="base-name">{{ getTitle(item) }}</span>
                                         </h3>
                                         <div class="badges-row">
                                             <span class="cat-pill">{{ item.category || item.item?.category || 'General'
                                                 }}</span>
 
-                                            <span class="badge-rental" *ngIf="item.allocatedQuantity === 0">
-                                                <i class="fa-solid fa-truck-fast"></i> FULL RENTAL: {{
-                                                item.requestedQuantity }}
+                                            <span class="badge-rental" *ngIf="isExternal(item) && !isNote(item)">
+                                                <i class="fa-solid fa-truck-fast"></i> EXTERNAL RENTAL
+                                            </span>
+
+                                            <!-- Prominent Tag for Rentals -->
+                                            <span class="badge-must-rent"
+                                                *ngIf="isExternal(item) || (item.requestedQuantity || 0) > (item.allocatedQuantity || 0)">
+                                                [!!! เช่าภายนอก]
+                                            </span>
+
+                                            <span class="badge-note" *ngIf="isNote(item)">
+                                                <i class="fa-solid fa-sticky-note"></i> HANDOVER NOTE
                                             </span>
 
                                             <span class="badge-shortage"
-                                                *ngIf="item.allocatedQuantity > 0 && item.requestedQuantity > item.allocatedQuantity">
+                                                *ngIf="!isExternal(item) && item.allocatedQuantity > 0 && item.requestedQuantity > item.allocatedQuantity">
                                                 <i class="fa-solid fa-triangle-exclamation"></i> SHORTAGE: {{
                                                 (item.requestedQuantity || 0) - (item.allocatedQuantity || 0) }}
                                                 <small>(Stock: {{ item.allocatedQuantity }})</small>
                                             </span>
-
-                                            <span class="badge-external" *ngIf="item.source === 'RENT_EXTERNAL'">
-                                                <i class="fas fa-truck-loading"></i> EXTERNAL
-                                            </span>
                                         </div>
-                                    </div>
-                                    <div class="external-rental-details" *ngIf="item.source === 'RENT_EXTERNAL'">
-                                        <div class="remark-row">
-                                            <i class="fas fa-quote-left"></i>
-                                            <span>{{ item.remark || 'No details provided' }}</span>
+
+                                        <div class="item-description-small"
+                                            *ngIf="getDescription(item) && getDescription(item) !== getTitle(item) && getDescription(item) !== item.itemName">
+                                            {{ getDescription(item) }}
                                         </div>
                                     </div>
                                 </div>

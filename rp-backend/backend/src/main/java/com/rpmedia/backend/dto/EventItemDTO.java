@@ -44,4 +44,6 @@ public class EventItemDTO {
     private String source; // RENT_EXTERNAL etc.
     private List<AssignedSerialDTO> serials;
     private String room; // room name from metadata
+    private String customName; // from metadata json
+    private String customDescription; // from metadata json
 }

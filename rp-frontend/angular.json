@@ -75,6 +75,20 @@
               "extractLicenses": false,
               "sourceMap": true,
               "namedChunks": true
+            },
+            "remote": {
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.remote.ts"
+                }
+              ],
+              "buildOptimizer": false,
+              "optimization": false,
+              "vendorChunk": true,
+              "extractLicenses": false,
+              "sourceMap": true,
+              "namedChunks": true
             }
           },
           "defaultConfiguration": "production"
@@ -90,6 +104,9 @@
             },
             "development": {
               "browserTarget": "rp-frontend:build:development"
+            },
+            "remote": {
+              "browserTarget": "rp-frontend:build:remote"
             }
           },
           "defaultConfiguration": "development"

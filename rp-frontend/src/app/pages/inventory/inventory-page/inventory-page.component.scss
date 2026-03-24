@@ -514,7 +514,7 @@
       gap: 6px;
 
       strong {
-        color: #10b981;
+        color: #3b82f6;
         font-size: 1.1rem;
         font-weight: 800;
         line-height: 1;
@@ -1118,7 +1118,7 @@
         color: white;
 
         &.highlight {
-          color: #10b981;
+          color: #3b82f6;
           text-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
         }
       }
@@ -1195,7 +1195,7 @@
 
         &[data-status="CONFIRMED"] {
           background: rgba(16, 185, 129, 0.15);
-          color: #10b981;
+          color: #3b82f6;
         }
 
         &[data-status="REQUESTED"] {
@@ -1231,64 +1231,89 @@
     transform: rotate(360deg);
   }
 }
+
 .modal-mode-toggle {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0.5rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+
+  button {
+    flex: 1;
     display: flex;
-    gap: 1rem;
-    margin-bottom: 2rem;
-    background: rgba(255, 255, 255, 0.05);
-    padding: 0.5rem;
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.8rem;
+    border: none;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.6);
+    font-weight: 500;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
 
-    button {
-        flex: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5rem;
-        padding: 0.8rem;
-        border: none;
-        background: transparent;
-        color: rgba(255, 255, 255, 0.6);
-        font-weight: 500;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: all 0.3s ease;
-
-        i {
-            font-size: 1.1rem;
-        }
-
-        &.active {
-            background: rgba(59, 130, 246, 0.2);
-            color: #60a5fa;
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
-        }
-
-        &:hover:not(.active) {
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-        }
+    i {
+      font-size: 1.1rem;
     }
+
+    &.active {
+      background: rgba(59, 130, 246, 0.2);
+      color: #60a5fa;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+    }
+
+    &:hover:not(.active) {
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+    }
+  }
 }
 
 .span-2 {
-    grid-column: span 2;
+  grid-column: span 2;
 }
 
-textarea.glass-input, .form-group textarea {
-    width: 100%;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    padding: 0.8rem;
-    color: white;
-    font-family: inherit;
-    resize: vertical;
-    outline: none;
+textarea.glass-input,
+.form-group textarea {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 0.8rem;
+  color: white;
+  font-family: inherit;
+  resize: vertical;
+  outline: none;
 
-    &:focus {
-        border-color: #3b82f6;
-        background: rgba(255, 255, 255, 0.1);
+  &.overbooked-card {
+    border-color: #ef4444;
+    background: rgba(239, 68, 68, 0.05);
+  }
+
+  &.external-card {
+    border-color: rgba(245, 158, 11, 0.4);
+    background: rgba(245, 158, 11, 0.05);
+
+    &:hover {
+      border-color: #f59e0b;
+      background: rgba(245, 158, 11, 0.1);
     }
+
+    .item-name {
+      color: #fcd34d;
+    }
+
+    .category-label {
+      color: #f59e0b;
+    }
+  }
+
+  &:focus {
+    border-color: #3b82f6;
+    background: rgba(255, 255, 255, 0.1);
+  }
 }
