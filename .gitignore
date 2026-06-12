@@ -1,3 +1,7 @@
 ﻿
 # Deploy zips
 *.zip
+
+# Secrets - never commit
+rp-backend/backend/src/main/resources/secrets.properties
+rp-backend/backend/src/main/resources/application-prod.properties
