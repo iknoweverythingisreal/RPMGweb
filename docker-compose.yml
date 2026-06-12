@@ -1,0 +1,49 @@
+version: "3.8"
+
+# RPMedia — full stack in two containers.
+#   1. cp .env.example .env   แล้วกรอกค่าจริง
+#   2. docker compose up -d --build
+#   3. เปิด http://<server-ip>  (frontend proxies /api → backend อัตโนมัติ)
+
+services:
+  backend:
+    build: ./rp-backend/backend
+    container_name: rpmedia-backend
+    restart: unless-stopped
+    environment:
+      # Spring reads these natively — no properties file needed in the image
+      SPRING_DATASOURCE_URL: ${DB_URL}
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      TEAMUP_API_KEY: ${TEAMUP_API_KEY:-}
+      TEAMUP_CALENDAR_KEY: ${TEAMUP_CALENDAR_KEY:-}
+      SPRING_JPA_SHOW_SQL: "false"
+    expose:
+      - "8080"
+
+  frontend:
+    build: ./rp-frontend
+    container_name: rpmedia-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+# ── ถ้าอยากรัน PostgreSQL ในเครื่องเดียวกันแทน DB ภายนอก ──
+# เอาคอมเมนต์ออก แล้วตั้ง DB_URL=jdbc:postgresql://db:5432/rpmedia_db
+#
+#  db:
+#    image: postgres:16-alpine
+#    container_name: rpmedia-db
+#    restart: unless-stopped
+#    environment:
+#      POSTGRES_DB: rpmedia_db
+#      POSTGRES_USER: ${DB_USERNAME}
+#      POSTGRES_PASSWORD: ${DB_PASSWORD}
+#    volumes:
+#      - pgdata:/var/lib/postgresql/data
+#
+# volumes:
+#   pgdata:
