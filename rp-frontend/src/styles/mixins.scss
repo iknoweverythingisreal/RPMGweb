@@ -5,10 +5,39 @@
    ====================================== */
 
 /* --------------------------------------
-   Responsive
+   Responsive Breakpoints
+   xs      → ≤ 480px  (small phones)
+   mobile  → ≤ 768px  (phones)
+   tablet  → ≤ 992px  (tablets / landscape)
+   desktop → > 992px  (desktop only)
 -------------------------------------- */
+
+@mixin xs {
+  @media (max-width: #{$bp-xs}) {
+    @content;
+  }
+}
+
 @mixin mobile {
-  @media (max-width: 768px) {
+  @media (max-width: #{$bp-mobile}) {
+    @content;
+  }
+}
+
+@mixin tablet {
+  @media (max-width: #{$bp-tablet}) {
+    @content;
+  }
+}
+
+@mixin tablet-only {
+  @media (min-width: #{$bp-mobile + 1}) and (max-width: #{$bp-tablet}) {
+    @content;
+  }
+}
+
+@mixin desktop {
+  @media (min-width: #{$bp-tablet + 1}) {
     @content;
   }
 }
@@ -199,14 +228,7 @@
 
 }
 
-/* --------------------------------------
-   Tablet breakpoint (768px - default)
--------------------------------------- */
-@mixin tablet {
-  @media (max-width: 768px) {
-    @content;
-  }
-}
+
 
 /* --------------------------------------
    Scrollbar

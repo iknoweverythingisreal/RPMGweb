@@ -19,7 +19,8 @@ interface CartItem {
   unitPrice?: number;
   description?: string;
   isForcedRental?: boolean;
-  individualIds: { itemId: number, qty: number, status?: string, source?: string, autoApprove?: boolean }[];
+  note?: string; // New: Shared Note for the group
+  individualIds: { itemId: number, qty: number, status?: string, source?: string, autoApprove?: boolean, note?: string }[];
 }
 
 @Component({
@@ -58,6 +59,7 @@ export class CartPageComponent implements OnInit {
     remark: ''
   };
   eventDates: { start: string, end: string } | null = null;
+  returnUrl: string | null = null;
 
   constructor(
     private router: Router,
@@ -74,6 +76,12 @@ export class CartPageComponent implements OnInit {
 
     const routeEventId = this.route.snapshot.paramMap.get('eventId');
     this.eventId = routeEventId ? Number(routeEventId) : Number(localStorage.getItem('selectedEventId') ?? 0);
+
+    this.route.queryParams.subscribe(params => {
+      if (params['returnUrl']) {
+        this.returnUrl = params['returnUrl'];
+      }
+    });
 
     if (this.eventId) {
       localStorage.setItem('selectedEventId', String(this.eventId));
@@ -108,12 +116,14 @@ export class CartPageComponent implements OnInit {
           room: roomName,
           unitPrice: it.unitPrice || 0,
           description: it.description || '',
-          individualIds: [{ itemId: it.itemId, qty: it.qty, status: it.status, source: it.source, autoApprove: it.autoApprove } as any]
+          note: it.note || '',
+          individualIds: [{ itemId: it.itemId, qty: it.qty, status: it.status, source: it.source, autoApprove: it.autoApprove, note: it.note } as any]
         });
       } else {
         const group = grouped.get(key)!;
         group.qty += it.qty;
-        group.individualIds.push({ itemId: it.itemId, qty: it.qty, status: it.status, source: it.source, autoApprove: it.autoApprove } as any);
+        group.individualIds.push({ itemId: it.itemId, qty: it.qty, status: it.status, source: it.source, autoApprove: it.autoApprove, note: it.note } as any);
+        if (it.note && !group.note) group.note = it.note;
       }
     });
 
@@ -264,6 +274,15 @@ export class CartPageComponent implements OnInit {
     );
   }
 
+  getCartRooms(): string[] {
+    const rooms = this.cart().map(item => item.room || '');
+    return Array.from(new Set(rooms)).sort();
+  }
+
+  getItemsInRoomGroup(room: string): CartItem[] {
+    return this.cart().filter(item => (item.room || '') === room);
+  }
+
   removeItem(groupId: string) {
     // 1. Remove from local signal
     const updated = this.cart().filter(i => i.id !== groupId);
@@ -274,7 +293,7 @@ export class CartPageComponent implements OnInit {
     this.updateTotal();
   }
 
-  private saveToStorage(groupedItems: CartItem[]) {
+  public saveToStorage(groupedItems: CartItem[]) {
     const flat = groupedItems.flatMap(g =>
       g.individualIds.map(indv => ({
         itemId: indv.itemId,
@@ -286,7 +305,8 @@ export class CartPageComponent implements OnInit {
         qty: indv.qty, // Note: if we changed total qty, this needs to be redistributed
         source: indv.source,
         unitPrice: g.unitPrice,
-        description: g.description
+        description: g.description,
+        note: g.note
       }))
     );
     localStorage.setItem('cart', JSON.stringify(flat));
@@ -350,7 +370,13 @@ export class CartPageComponent implements OnInit {
   }
 
   goBack() {
-    this.router.navigate(['/inventory/event', this.eventId]);
+    if (this.eventId) {
+      const queryParams: any = { room: this.cart()[0]?.room };
+      if (this.returnUrl) queryParams.returnUrl = this.returnUrl;
+      this.router.navigate(['/inventory/event', this.eventId], { queryParams });
+    } else {
+      this.router.navigate(['/inventory/select-event']);
+    }
   }
 
   openConfirmModal() {
@@ -364,11 +390,10 @@ export class CartPageComponent implements OnInit {
 
   isPastEvent(): boolean {
     if (!this.eventDates) return false;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
     const end = new Date(this.eventDates.end);
-    end.setHours(0, 0, 0, 0);
-    return end < today;
+    const now = new Date();
+    const twoWeeksAfter = new Date(end.getTime() + (14 * 24 * 60 * 60 * 1000));
+    return now > twoWeeksAfter;
   }
 
   openRentalModal(item?: any) {
@@ -409,10 +434,11 @@ export class CartPageComponent implements OnInit {
             requestedQuantity: indv.qty,
             unitPrice: group.unitPrice || 0,
             rateType: 'daily',
-            remark: group.description || group.itemName || '',
+            remark: group.note || group.description || group.itemName || '',
             status: indv.status,
             source: indv.source,
             autoApprove: (indv as any).autoApprove,
+            room: group.room || '',
             metadata: {
               room: group.room || ''
             }
@@ -443,7 +469,9 @@ export class CartPageComponent implements OnInit {
 
   navigateToRoomDirector() {
     const targetUrl = ['/inventory/event', this.eventId.toString(), 'room-assign'];
-    this.router.navigate(targetUrl);
+    const queryParams: any = {};
+    if (this.returnUrl) queryParams.returnUrl = this.returnUrl;
+    this.router.navigate(targetUrl, { queryParams });
   }
 
   isExternal(item: any): boolean {

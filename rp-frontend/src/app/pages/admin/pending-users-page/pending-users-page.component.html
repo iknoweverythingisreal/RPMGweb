@@ -19,7 +19,7 @@
     <div class="dashboard-content">
       <!-- Tabs Navigation -->
       <div class="premium-tabs">
-        <button class="tab-item" *ngIf="!userService.isTechLead" [class.active]="activeTab === 'users'"
+        <button class="tab-item" *ngIf="userService.canManageUsers" [class.active]="activeTab === 'users'"
           (click)="activeTab = 'users'">
           <i class="fas fa-users"></i>
           <span>User Approvals</span>

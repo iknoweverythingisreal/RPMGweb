@@ -37,69 +37,81 @@
       </div>
     </div>
 
-    <!-- Cart Items List -->
-    <div *ngIf="cart().length" class="cart-items-list">
-      <div class="cart-item-card" *ngFor="let item of cart()" [class.external-card]="isExternal(item)">
-        <div class="item-info">
-          <div class="item-main">
-            <h3 class="item-name">
-              <span class="forced-rental-badge auto-rental" *ngIf="item.isForcedRental">AUTO RENTAL</span>
-              {{ getTitle(item) }}
-            </h3>
-            <div class="item-description-small" *ngIf="getDescription(item) && getDescription(item) !== getTitle(item)">
-              {{ getDescription(item) }}
-            </div>
-          </div>
-          <div class="item-meta">
-            <span class="category-tag">{{ item.category }}</span>
-            <span class="uom">{{ item.uom }}</span>
-            <span class="room-badge" *ngIf="item.room">
-              <i class="fas fa-door-open"></i> {{ item.room }}
-            </span>
-          </div>
+    <!-- Cart Items List (Grouped by Room) -->
+    <div *ngIf="cart().length" class="cart-items-list-grouped">
+      <div class="room-group" *ngFor="let room of getCartRooms()">
+        <div class="room-group-header">
+          <i class="fa-solid fa-layer-group"></i>
+          <span>ROOM: {{ room || 'UNASSIGNED' }}</span>
         </div>
 
-        <div class="item-actions">
-          <div class="stock-info" *ngIf="availabilityMap().get(item.id); let avail">
-            <div class="source-pills" *ngIf="isExternal(item)">
-              <div class="source-pill rental-badge active">
-                <i class="fas fa-truck-fast"></i>
-                <span class="lbl">EXTERNAL RENTAL</span>
+        <div class="cart-item-card" *ngFor="let item of getItemsInRoomGroup(room)"
+          [class.external-card]="isExternal(item)">
+          <div class="item-info">
+            <div class="item-main">
+              <h3 class="item-name">
+                <span class="forced-rental-badge auto-rental" *ngIf="item.isForcedRental">AUTO RENTAL</span>
+                {{ getTitle(item) }}
+              </h3>
+              <div class="item-description-small"
+                *ngIf="getDescription(item) && getDescription(item) !== getTitle(item)">
+                {{ getDescription(item) }}
               </div>
             </div>
-
-            <div class="source-pills" *ngIf="!isExternal(item)">
-              <!-- Remaining Stock Badge -->
-              <div class="source-pill stock-total" [class.no-stock]="(avail.remainingStock || 0) <= 0">
-                <span class="lbl">REMAINING</span>
-                <span class="val">{{ (avail.remainingStock || 0) | number }}</span>
-              </div>
-
-              <!-- Avail Badge -->
-              <div class="source-pill avail" [class.avail-low]="(avail.netAvail || 0) < 0">
-                <span class="lbl">AFTER CART</span>
-                <span class="val">{{ avail.netAvail || 0 }}</span>
-              </div>
-
-              <!-- Shortage Badge (High Visibility) -->
-              <div class="source-pill rental-badge" *ngIf="(avail.overbooked || 0) > 0">
-                <i class="fas fa-triangle-exclamation"></i>
-                <span class="lbl">OVERBOOKED</span>
-                <span class="val">{{ (avail.overbooked || 0) | number }}</span>
+            <div class="item-meta">
+              <span class="category-tag">{{ item.category }}</span>
+              <span class="uom">{{ item.uom }}</span>
+              <div class="item-note-input">
+                <i class="fa-solid fa-pen-to-square"></i>
+                <input type="text" [(ngModel)]="item.note" (ngModelChange)="saveToStorage(cart())"
+                  placeholder="Add handover note...">
               </div>
             </div>
-
           </div>
 
-          <div class="qty-selector">
-            <button class="btn-qty" (click)="changeQty(item.id, -1)" [disabled]="item.qty <= 1">-</button>
-            <input type="number" class="qty-input" [value]="item.qty" (input)="onQtyInput(item.id, $event)" min="1"
-              max="999">
-            <button class="btn-qty" (click)="changeQty(item.id, 1)">+</button>
+          <div class="item-actions">
+            <div class="stock-info" *ngIf="availabilityMap().get(item.id); let avail">
+              <div class="source-pills" *ngIf="isExternal(item)">
+                <div class="source-pill rental-badge active">
+                  <i class="fas fa-truck-fast"></i>
+                  <span class="lbl">EXTERNAL RENTAL</span>
+                </div>
+              </div>
+
+              <div class="source-pills" *ngIf="!isExternal(item)">
+                <!-- Remaining Stock Badge -->
+                <div class="source-pill stock-total" [class.no-stock]="(avail.remainingStock || 0) <= 0">
+                  <span class="lbl">REMAINING</span>
+                  <span class="val">{{ (avail.remainingStock || 0) | number }}</span>
+                </div>
+
+                <!-- Avail Badge -->
+                <div class="source-pill avail" [class.avail-low]="(avail.netAvail || 0) < 0">
+                  <span class="lbl">AFTER CART</span>
+                  <span class="val">{{ avail.netAvail || 0 }}</span>
+                </div>
+
+                <!-- Shortage Badge (High Visibility) -->
+                <div class="source-pill rental-badge" *ngIf="(avail.overbooked || 0) > 0">
+                  <i class="fas fa-triangle-exclamation"></i>
+                  <span class="lbl">OVERBOOKED</span>
+                  <span class="val">{{ (avail.overbooked || 0) | number }}</span>
+                </div>
+              </div>
+
+            </div>
+
+            <div class="qty-selector">
+              <button class="btn-qty" (click)="$event.stopPropagation(); changeQty(item.id, -1)"
+                [disabled]="item.qty <= 1">-</button>
+              <input type="number" class="qty-input" [value]="item.qty" (input)="onQtyInput(item.id, $event)" min="1"
+                max="999" (click)="$event.stopPropagation()">
+              <button class="btn-qty" (click)="$event.stopPropagation(); changeQty(item.id, 1)">+</button>
+            </div>
+            <button class="btn-remove" (click)="$event.stopPropagation(); removeItem(item.id)" title="Remove item">
+              <i class="fas fa-trash-alt"></i>
+            </button>
           </div>
-          <button class="btn-remove" (click)="removeItem(item.id)" title="Remove item">
-            <i class="fas fa-trash-alt"></i>
-          </button>
         </div>
       </div>
     </div>

@@ -1,0 +1,85 @@
+<div class="summary-container">
+    <header class="page-header">
+        <div class="header-left">
+            <button class="btn-back-glass" onclick="history.back()" aria-label="Back">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <div class="title-area">
+                <h1><i class="fas fa-boxes"></i> Master Equipment Summary</h1>
+                <p>Continuous usage statistics across the entire system history</p>
+            </div>
+        </div>
+        <div class="header-actions">
+            <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" [ngModel]="searchTerm()" (ngModelChange)="searchTerm.set($event)"
+                    placeholder="Filter items by name or category...">
+            </div>
+            <button class="btn-export" (click)="loadData()" [disabled]="isLoading()">
+                <i class="fas fa-sync" [class.fa-spin]="isLoading()"></i>
+            </button>
+        </div>
+    </header>
+
+    <div class="summary-grid" [class.loading]="isLoading()">
+        <div class="loading-overlay" *ngIf="isLoading()">
+            <div class="spinner"></div>
+            <p>Analyzing item data...</p>
+        </div>
+
+        <div class="table-container" *ngIf="!isLoading()">
+            <table class="master-table">
+                <thead>
+                    <tr>
+                        <th>Item Details</th>
+                        <th>Category</th>
+                        <th>Global Total Usage</th>
+                        <th>Event Participation</th>
+                        <th>Latest Interaction</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr *ngFor="let item of filteredSummary()">
+                        <td>
+                            <div class="item-id">#{{ item.id }}</div>
+                            <div class="item-name">{{ item.name }}</div>
+                        </td>
+                        <td>
+                            <span class="category-tag">{{ item.category }}</span>
+                        </td>
+                        <td>
+                            <span class="usage-value">{{ item.totalUsage }}</span>
+                            <span class="unit">units</span>
+                        </td>
+                        <td>
+                            <div class="participation">
+                                <i class="fa-solid fa-calendar-check"></i>
+                                {{ item.eventCount }} Events
+                            </div>
+                        </td>
+                        <td>
+                            <div class="last-date" *ngIf="item.lastUsed">
+                                <i class="fa-solid fa-clock-rotate-left"
+                                    style="margin-right: 6px; font-size: 0.8rem; color: #38bdf8;"></i>
+                                {{ item.lastUsed | date:'dd MMM yyyy' }}
+                            </div>
+                            <div class="last-date none" *ngIf="!item.lastUsed">
+                                <i class="fa-solid fa-ghost" style="margin-right: 6px; font-size: 0.8rem;"></i>Never
+                                used
+                            </div>
+                        </td>
+                        <td>
+                            <button class="btn-report" (click)="onReportDamage(item)" title="Report Damage">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    <tr *ngIf="filteredSummary().length === 0">
+                        <td colspan="5" class="empty-state">No items match your search criteria</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

@@ -28,4 +28,5 @@ public class EventItemRequestDTO {
     private Boolean autoApprove;
     private String customName;
     private String customDescription;
+    private String room;
 }

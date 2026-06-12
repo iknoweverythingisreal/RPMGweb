@@ -204,6 +204,12 @@ export class CalendarPageComponent implements OnInit {
   rowHeights: number[] = []; // NEW: Dynamic heights for each row
   weekRows: WeekRow[] = [];
   weekDays: { date: Date; isToday: boolean; events: CalendarEvent[] }[] = [];
+  weekAllDayBars: {
+    id: number; title: string; color: string; textColor: string;
+    startCol: number; span: number; lane: number; contLeft: boolean; contRight: boolean;
+  }[] = [];
+  weekLaneCount = 0;
+  dayAllDayEvents: CalendarEvent[] = [];
 
   svgBars: SvgBar[] = [];
   gradientDefs: GradientDef[] = []; // SVG gradient definitions
@@ -218,6 +224,12 @@ export class CalendarPageComponent implements OnInit {
   private rafId: number | null = null;
   private resizeTimer: any;
 
+  months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  years: number[] = [];
+
   form = { title: '', start: '', end: '', category: 'annual_meeting', description: '', location: '' };
   selectedManagerIds: number[] = [];
 
@@ -228,11 +240,12 @@ export class CalendarPageComponent implements OnInit {
     { id: 'conference', name: 'Conference', color: '#ef4444', visible: true }
   ];
 
+
   constructor(
     private eventService: EventService,
     public userService: UserService,
     private cdr: ChangeDetectorRef,
-    private router: Router,
+    public router: Router,
     private route: ActivatedRoute,
     private toastService: ToastService,
     private eventItemsService: EventItemsService
@@ -263,6 +276,12 @@ export class CalendarPageComponent implements OnInit {
     this.loadOwners();
     this.loadUsers();
 
+    // Initialize years
+    const currentYear = new Date().getFullYear();
+    for (let y = currentYear - 5; y <= currentYear + 10; y++) {
+      this.years.push(y);
+    }
+
     // Check for query param to auto-open modal
     this.route.queryParams.subscribe((params: any) => {
       if (params['openModal'] === 'true') {
@@ -279,6 +298,25 @@ export class CalendarPageComponent implements OnInit {
       }
     });
   }
+
+  onMonthChange(monthIdx: number) {
+    this.currentDate.setMonth(monthIdx);
+    this.loadEventsFromAPI();
+  }
+
+  onYearChange(year: number) {
+    this.currentDate.setFullYear(year);
+    this.loadEventsFromAPI();
+  }
+
+  selectAllManagers() {
+    this.selectedManagerIds = this.assignmentUsers.map(u => u.id);
+  }
+
+  deselectAllManagers() {
+    this.selectedManagerIds = [];
+  }
+
 
   /* ===== Users ===== */
   loadUsers() {
@@ -341,14 +379,8 @@ export class CalendarPageComponent implements OnInit {
   }
 
   private initializeSelectedUsers(): void {
-    const meId = Number(localStorage.getItem('userId'));
-    if (this.userService.isManager) {
-      // Managers/Admins: Default to "Only Me"
-      this.selectedUserIds = Number.isFinite(meId) ? [meId] : [];
-    } else {
-      // Tech/Employee: Default to "Select All"
-      this.selectedUserIds = this.users.map(u => u.id);
-    }
+    // Every role defaults to "Select All" — use the sidebar's "Only me" button to narrow down
+    this.selectedUserIds = this.users.map(u => u.id);
   }
 
   private setOnlyMe(): void {
@@ -535,18 +567,34 @@ export class CalendarPageComponent implements OnInit {
    * Get color for event bar - returns gradient metadata if multiple owners/managers
    */
   private getEventBarColor(event: CalendarEvent): { color: string; gradientId?: string; patternId?: string; stops?: any[]; colors?: string[] } {
-    // Use allColors if available (multi-owner pattern - Striped)
-    if (event.allColors && event.allColors.length > 1) {
+    let colors = (event.allColors || []).filter(c => !!c);
+
+    // Fallback: backend allColors missing/incomplete — rebuild from owner + manager ids
+    if (colors.length <= 1) {
+      const ids: number[] = [];
+      const ownerId = this.getOwnerId(event);
+      if (ownerId != null) ids.push(ownerId);
+      (event.managerIds || []).forEach(id => { if (!ids.includes(id)) ids.push(id); });
+      (event.managers || []).forEach(m => { if (m?.id != null && !ids.includes(m.id)) ids.push(m.id); });
+
+      const mapped = ids.map(id => this.userColor[id]).filter(c => !!c);
+      if (mapped.length > colors.length) colors = mapped;
+    }
+
+    // Dedupe so identical colors don't fake a stripe pattern
+    const unique = Array.from(new Set(colors));
+
+    if (unique.length > 1) {
       const patternId = `pattern-${event.id}`;
       return {
         color: `url(#${patternId})`,
         patternId: patternId,
-        colors: event.allColors
+        colors: unique
       };
     }
 
     // Single color or fallback
-    const singleColor = event.allColors?.[0] || event.ownerColorHex || this.getCategoryColor(event.customFields?.category || 'annual_meeting');
+    const singleColor = unique[0] || event.ownerColorHex || this.getCategoryColor(event.customFields?.category || 'annual_meeting');
     return { color: singleColor };
   }
 
@@ -990,16 +1038,23 @@ export class CalendarPageComponent implements OnInit {
 
   /** ===== Day View Logic ===== */
   generateDayView(): void {
-    const filtered = this.events.filter(ev => {
+    const dayStart = new Date(this.currentDate);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setDate(dayEnd.getDate() + 1);
+
+    // Any event overlapping this day (covers events that start before and end after)
+    const overlapping = this.events.filter(ev => {
       if (!(ev.start instanceof Date)) return false;
-      const onDay = this.isSameDay(ev.start, this.currentDate) ||
-        (ev.end instanceof Date && this.isSameDay(ev.end, this.currentDate));
-      return onDay && this.passOwnerAndCategoryFilter(ev);
+      const end = ev.end instanceof Date ? ev.end : ev.start;
+      return ev.start < dayEnd && end >= dayStart && this.passOwnerAndCategoryFilter(ev);
     });
 
-    this.filteredEvents = filtered.sort(
-      (a, b) => (a.start?.getTime() || 0) - (b.start?.getTime() || 0)
-    );
+    // Multi-day events render as full-width lines on top, timed events in the hour grid
+    this.dayAllDayEvents = overlapping.filter(ev => this.isMultiDayEvent(ev));
+    this.filteredEvents = overlapping
+      .filter(ev => !this.isMultiDayEvent(ev))
+      .sort((a, b) => (a.start?.getTime() || 0) - (b.start?.getTime() || 0));
     this.cdr.detectChanges();
   }
 
@@ -1021,16 +1076,65 @@ export class CalendarPageComponent implements OnInit {
       const d = new Date(startOfWeek);
       d.setDate(startOfWeek.getDate() + i);
       const isToday = d.toDateString() === today.toDateString();
+      // Only timed single-day events go in the hour grid; multi-day events get a bar lane on top
       const events = this.events.filter(ev => {
         if (!(ev.start instanceof Date)) return false;
         const sameDay = this.isSameDay(ev.start, d);
-        return sameDay && this.passOwnerAndCategoryFilter(ev);
+        return sameDay && !this.isMultiDayEvent(ev) && this.passOwnerAndCategoryFilter(ev);
       });
       days.push({ date: d, isToday, events });
     }
 
     this.weekDays = days;
+    this.buildWeekAllDayBars(startOfWeek);
     this.cdr.detectChanges();
+  }
+
+  /** Horizontal event lines spanning the week (multi-day events), Google-Calendar style */
+  private buildWeekAllDayBars(startOfWeek: Date): void {
+    const weekStart = new Date(startOfWeek);
+    weekStart.setHours(0, 0, 0, 0);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 7);
+
+    const multiDay = this.events
+      .filter(ev => {
+        if (!(ev.start instanceof Date) || !this.isMultiDayEvent(ev)) return false;
+        const end = ev.end instanceof Date ? ev.end : ev.start;
+        return ev.start < weekEnd && end >= weekStart && this.passOwnerAndCategoryFilter(ev);
+      })
+      .sort((a, b) => (a.start?.getTime() || 0) - (b.start?.getTime() || 0));
+
+    const dayMs = 86400000;
+    const lanes: number[] = []; // last occupied end column per lane
+    this.weekAllDayBars = multiDay.map(ev => {
+      const start = ev.start as Date; // guaranteed Date by the filter above
+      const end: Date = ev.end instanceof Date ? ev.end : start;
+      const startCol = Math.max(0, Math.floor((start.getTime() - weekStart.getTime()) / dayMs));
+      const endCol = Math.min(6, Math.floor((Math.min(end.getTime(), weekEnd.getTime() - 1) - weekStart.getTime()) / dayMs));
+
+      let lane = lanes.findIndex(lastEnd => lastEnd < startCol);
+      if (lane === -1) {
+        lane = lanes.length;
+        lanes.push(endCol);
+      } else {
+        lanes[lane] = endCol;
+      }
+
+      const color = this.getColorForEvent(ev);
+      return {
+        id: ev.id,
+        title: ev.title,
+        color,
+        textColor: this.getBarTextColor(color),
+        startCol,
+        span: endCol - startCol + 1,
+        lane,
+        contLeft: start < weekStart,
+        contRight: end >= weekEnd
+      };
+    });
+    this.weekLaneCount = lanes.length;
   }
 
   getCurrentWeekRangeText(): string {
@@ -1244,13 +1348,17 @@ export class CalendarPageComponent implements OnInit {
   }
 
   isFormValid(): boolean {
+    return this.getFormValidationError() === null;
+  }
+
+  /** Returns a specific message about what's missing, or null when the form is complete */
+  getFormValidationError(): string | null {
     const { title, start, end } = this.form;
-    if (!title?.trim()) return false;
-    if (!start || !end) return false;
-    const s = new Date(start);
-    const ed = new Date(end);
-    if (ed <= s) return false;
-    return true;
+    if (!title?.trim()) return 'Please enter an event title';
+    if (!start) return 'Please select a start date & time';
+    if (!end) return 'Please select an end date & time';
+    if (new Date(end) <= new Date(start)) return 'End time must be after the start time';
+    return null;
   }
 
   saveEvent(e?: Event): void {
@@ -1262,8 +1370,9 @@ export class CalendarPageComponent implements OnInit {
       return;
     }
 
-    if (!this.isFormValid()) {
-      this.toastService.show(' Please fill in all required fields correctly', 'error');
+    const validationError = this.getFormValidationError();
+    if (validationError) {
+      this.toastService.show(validationError, 'error');
       return;
     }
 
@@ -1275,6 +1384,12 @@ export class CalendarPageComponent implements OnInit {
     const s = new Date(start);
     const ed = new Date(end);
 
+    // When editing, keep the event's other customFields (e.g. rooms) instead of wiping them
+    const existingCustomFields = this.isEditMode
+      ? (this.events.find(ev => ev.id === this.editingEventId)?.customFields
+        || this.selectedEvent?.customFields || {})
+      : {};
+
     const payload: CreateEventRequest = {
       title: title.trim(),
       description: (description ?? '').trim(),
@@ -1284,8 +1399,9 @@ export class CalendarPageComponent implements OnInit {
       startTime: DateTimeHelper.toLocalTimeSeconds(s),
       endTime: DateTimeHelper.toLocalTimeSeconds(ed),
       ownerId: this.currentUserId,
-      managerIds: this.selectedManagerIds.length > 0 ? this.selectedManagerIds : undefined,
-      customFields: { category }
+      // Always send the array: [] intentionally clears all managers
+      managerIds: this.selectedManagerIds,
+      customFields: { ...existingCustomFields, category }
     };
     const op = this.isEditMode && this.editingEventId
       ? this.eventService.updateEvent(this.editingEventId, payload)
@@ -1293,12 +1409,33 @@ export class CalendarPageComponent implements OnInit {
     op.subscribe({
       next: () => {
         this.toastService.show(' Event saved successfully', 'success');
+
+        if (this.isEditMode && this.editingEventId) {
+          this.checkShortageAfterUpdate(this.editingEventId);
+        }
+
         this.loadEventsFromAPI();
         this.closeModal();
       },
       error: (err: any) => {
         const a = this.isEditMode ? '' : '';
         this.toastService.show(`${a}: ` + (err?.error?.message || err.message || 'unknown'), 'error');
+      }
+    });
+  }
+
+  private checkShortageAfterUpdate(eventId: number) {
+    this.eventItemsService.getEventItems(eventId).subscribe({
+      next: (items) => {
+        const shortages = items.filter(it => it.requestedQuantity > it.allocatedQuantity);
+        if (shortages.length > 0) {
+          const names = shortages.slice(0, 3).map(it => it.itemName).join(', ');
+          const more = shortages.length > 3 ? ` and ${shortages.length - 3} more` : '';
+
+          if (confirm(`⚠️ OVERBOOKED ALERT: ${shortages.length} items are now unavailable for the updated dates.\n\nConflicts: ${names}${more}\n\nWould you like to manage these items now?`)) {
+            this.router.navigate(['/inventory/event', eventId, 'room-assign']);
+          }
+        }
       }
     });
   }
@@ -1433,8 +1570,17 @@ export class CalendarPageComponent implements OnInit {
   }
 
   canEditSelected(): boolean {
+    if (this.selectedEvent && !this.isEditable(this.selectedEvent)) return false;
     if (this.isPastEvent()) return false;
     return this.userService.isManager; // Or check ownership if needed
+  }
+
+  isEditable(event: CalendarEvent): boolean {
+    if (!event || !event.endDate) return true;
+    const end = new Date(event.endDate);
+    const now = new Date();
+    const twoWeeksAfter = new Date(end.getTime() + (14 * 24 * 60 * 60 * 1000));
+    return now <= twoWeeksAfter;
   }
 
   editEvent(): void {

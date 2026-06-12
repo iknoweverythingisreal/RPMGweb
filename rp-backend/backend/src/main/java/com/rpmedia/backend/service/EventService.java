@@ -166,23 +166,23 @@ public class EventService {
             }
         }
 
-        // Collect all colors for gradient (owner + managers)
+        // Collect all colors for gradient (owner + managers).
+        // Always include one color per participant (fallback gray when unset),
+        // deduplicated so the same person/color doesn't create fake stripes.
         java.util.List<String> allColors = new java.util.ArrayList<>();
+        allColors.add(ownerColor); // ownerColor already falls back to #888
 
-        // Add owner color first
-        if (e.getCalendarOwner() != null && e.getCalendarOwner().getColorHex() != null
-                && !e.getCalendarOwner().getColorHex().isBlank()) {
-            allColors.add(e.getCalendarOwner().getColorHex());
-        } else if (e.getCreatedBy() != null && e.getCreatedBy().getCalendarColor() != null
-                && !e.getCreatedBy().getCalendarColor().isBlank()) {
-            allColors.add(e.getCreatedBy().getCalendarColor());
-        }
-
-        // Add manager colors
         if (e.getManagers() != null && !e.getManagers().isEmpty()) {
             for (User manager : e.getManagers()) {
-                if (manager.getCalendarColor() != null && !manager.getCalendarColor().isBlank()) {
-                    allColors.add(manager.getCalendarColor());
+                // Skip the creator if they assigned themselves as manager
+                if (e.getCreatedBy() != null && manager.getId().equals(e.getCreatedBy().getId())) {
+                    continue;
+                }
+                String managerColor = (manager.getCalendarColor() != null && !manager.getCalendarColor().isBlank())
+                        ? manager.getCalendarColor()
+                        : "#64748b";
+                if (!allColors.contains(managerColor)) {
+                    allColors.add(managerColor);
                 }
             }
         }

@@ -255,11 +255,46 @@
   }
 }
 
-/* ========= Cart Items List ========= */
-.cart-items-list {
+.cart-items-list-grouped {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 2.5rem;
+  padding-bottom: 120px;
+
+  .room-group {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+
+    .room-group-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 1rem;
+
+      i {
+        color: #3b82f6;
+        font-size: 1rem;
+        filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.4));
+      }
+
+      span {
+        font-size: 0.75rem;
+        font-weight: 950;
+        letter-spacing: 3px;
+        color: #64748b;
+        text-transform: uppercase;
+      }
+
+      &::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: linear-gradient(90deg, rgba(255, 255, 255, 0.1), transparent);
+        margin-left: 10px;
+      }
+    }
+  }
 }
 
 .cart-item-card {

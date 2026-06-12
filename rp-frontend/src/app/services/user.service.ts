@@ -74,7 +74,7 @@ export class UserService {
   }
 
   get isManager$() {
-    return this.currentUser$.pipe(map(u => u?.role === 'MANAGER' || u?.role === 'ADMIN'));
+    return this.currentUser$.pipe(map(u => u?.role === 'MANAGER' || u?.role === 'ADMIN' || u?.role === 'TECH_LEAD'));
   }
 
   get isTechLead$() {
@@ -83,6 +83,10 @@ export class UserService {
 
   get isTechnical$() {
     return this.currentUser$.pipe(map(u => u?.role === 'TECHNICAL' || u?.role === 'TECH_LEAD'));
+  }
+
+  get canManageUsers$() {
+    return this.currentUser$.pipe(map(u => u?.role === 'ADMIN' || u?.role === 'TECH_LEAD'));
   }
 
   // ================================
@@ -94,7 +98,7 @@ export class UserService {
 
   get isManager() {
     const r = this.currentUser?.role;
-    return r === 'MANAGER' || r === 'ADMIN';
+    return r === 'MANAGER' || r === 'ADMIN' || r === 'TECH_LEAD';
   }
 
   get isTechLead() {
@@ -104,5 +108,10 @@ export class UserService {
   get isTechnical() {
     const r = this.currentUser?.role;
     return r === 'TECHNICAL' || r === 'TECH_LEAD';
+  }
+
+  get canManageUsers() {
+    const r = this.currentUser?.role;
+    return r === 'ADMIN' || r === 'TECH_LEAD';
   }
 }

@@ -165,6 +165,16 @@ public class EventItemService {
         entity.setCreatedAt(LocalDateTime.now());
         entity.setUpdatedAt(LocalDateTime.now());
 
+        // 🔹 Save Metadata (Room, Custom Name, Description)
+        com.fasterxml.jackson.databind.node.ObjectNode meta = objectMapper.createObjectNode();
+        if (dto.getCustomName() != null)
+            meta.put("customName", dto.getCustomName());
+        if (dto.getCustomDescription() != null)
+            meta.put("customDescription", dto.getCustomDescription());
+        if (dto.getRoom() != null && !dto.getRoom().trim().isEmpty())
+            meta.put("room", dto.getRoom());
+        entity.setMetadata(meta);
+
         EventItem saved = eventItemRepository.save(entity);
         if (hasSerial) {
             createEventItemUnits(saved, dto.getSerials());
@@ -1011,11 +1021,21 @@ public class EventItemService {
     private void handleSplitMerging(Event event, Item item, int reqQty, int allocQty, EventItemRequestDTO req,
             List<EventItemDTO> results, boolean hasSerial, int currentAvailable) {
         boolean incomingIsRental = (allocQty == 0);
+        String incomingRoom = req.getRoom() != null ? req.getRoom().trim() : "";
+        boolean isUnassigned = incomingRoom.isEmpty() || "Unassigned".equalsIgnoreCase(incomingRoom);
 
-        // Find compatible unassigned record for merging
+        // Find compatible record for merging (Match Room AND allocation status)
         List<EventItem> existingList = eventItemRepository.findByEventIdAndItemId(event.getId(), item.getId());
         EventItem existing = existingList.stream()
-                .filter(ei -> ei.getMetadata() == null || !ei.getMetadata().has("room"))
+                .filter(ei -> {
+                    String existingRoom = (ei.getMetadata() != null && ei.getMetadata().has("room"))
+                            ? ei.getMetadata().get("room").asText().trim()
+                            : "";
+                    if (isUnassigned) {
+                        return existingRoom.isEmpty() || "Unassigned".equalsIgnoreCase(existingRoom);
+                    }
+                    return incomingRoom.equalsIgnoreCase(existingRoom);
+                })
                 .filter(ei -> {
                     boolean existingIsRental = (nvl(ei.getAllocatedQuantity()) == 0);
                     return incomingIsRental == existingIsRental;
@@ -1083,12 +1103,14 @@ public class EventItemService {
         entity.setRemark(req.getRemark());
         entity.setStatus(incomingIsRental ? ItemStatus.PENDING_RENT : ItemStatus.CONFIRMED);
 
-        // 🔹 Save Custom Name & Description to Metadata
+        // 🔹 Save Metadata (Room, Custom Name, Description)
         com.fasterxml.jackson.databind.node.ObjectNode meta = objectMapper.createObjectNode();
         if (req.getCustomName() != null)
             meta.put("customName", req.getCustomName());
         if (req.getCustomDescription() != null)
             meta.put("customDescription", req.getCustomDescription());
+        if (req.getRoom() != null && !req.getRoom().trim().isEmpty())
+            meta.put("room", req.getRoom().trim());
         entity.setMetadata(meta);
 
         entity.setCreatedAt(LocalDateTime.now());

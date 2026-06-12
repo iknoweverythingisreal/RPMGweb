@@ -54,6 +54,9 @@ public class EventHistoryService {
     // ✅ สำหรับหน้า UI ดึงประวัติเรียงเวลาใหม่สุดก่อน
     public List<EventHistory> getHistoryByEvent(Long eventId) {
         return repository.findByEventIdOrderByChangedAtDesc(eventId);
+    }
 
+    public List<EventHistory> getAllHistory() {
+        return repository.findAllByOrderByChangedAtDesc();
     }
 }

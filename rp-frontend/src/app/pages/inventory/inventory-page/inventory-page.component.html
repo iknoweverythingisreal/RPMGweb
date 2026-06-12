@@ -24,7 +24,14 @@
       </button>
       <div class="title-section">
         <h1 class="marquee-text">{{ eventName() }}</h1>
-        <p>Inventory Management</p>
+        <div class="active-room-indicator" *ngIf="activeRoom()">
+          <i class="fa-solid fa-layer-group"></i>
+          <span>Filling Room: <strong>{{ activeRoom() }}</strong></span>
+          <button class="btn-change-room" (click)="goBack()" title="Change Room">
+            <i class="fa-solid fa-rotate"></i>
+          </button>
+        </div>
+        <p *ngIf="!activeRoom()">Inventory Management</p>
       </div>
 
       <div class="header-actions">
@@ -32,15 +39,15 @@
           <i class="fas fa-calendar-alt"></i>
           <span>Calendar</span>
         </button>
-        <button *ngIf="isAdmin || isManager" class="btn-action btn-rental" (click)="openRentalModal()"
-          [disabled]="isPastEvent()">
+        <button *ngIf="(isAdmin || isManager) && !isCatalogMode" class="btn-action btn-rental"
+          (click)="openRentalModal()" [disabled]="isPastEvent()">
           <span>Rental</span>
         </button>
-        <button *ngIf="(isAdmin || isTech) && !userService.isTechLead" class="btn-action btn-new"
+        <button *ngIf="(isAdmin || isTech) && (isCatalogMode || !userService.isTechLead)" class="btn-action btn-new"
           (click)="openCreateModal()">
           <span>+ Item</span>
         </button>
-        <button *ngIf="isAdmin || isManager" class="btn-action btn-cart" (click)="goToCart()"
+        <button *ngIf="(isAdmin || isManager) && !isCatalogMode" class="btn-action btn-cart" (click)="goToCart()"
           [attr.data-count]="cartCount">
           <i class="fas fa-shopping-cart"></i>
           <span>Review Cart ({{ cartCount }})</span>
@@ -108,6 +115,9 @@
           </p>
           <div class="stock-info-tiny" *ngIf="!isExternal(item)">
             <span>Stock: {{ getAvailabilityForItem(item.id)?.total || item.totalQuantity }}</span>
+            <span class="repair-badge" *ngIf="getRepairQty(item) > 0">
+              <i class="fas fa-tools"></i> {{ getRepairQty(item) }} in repair
+            </span>
           </div>
         </div>
 
@@ -126,21 +136,33 @@
           </div>
 
           <div class="footer-controls">
-            <div class="qty-selector-mini">
-              <label class="qty-label">Qty:</label>
-              <input type="number" class="qty-input" [value]="getQtyForItem(item.id)"
-                (input)="updateQty(item.id, $any($event.target).value)" min="1" />
+            <div class="qty-note-wrap" *ngIf="!isCatalogMode">
+              <div class="qty-selector-mini">
+                <label class="qty-label">Qty:</label>
+                <input type="number" class="qty-input" [value]="getQtyForItem(item.id)"
+                  (input)="updateQty(item.id, $any($event.target).value)" min="1" />
+              </div>
+              <div class="note-input-mini">
+                <input type="text" placeholder="Add note..." [ngModel]="itemNotes().get(item.id)"
+                  (ngModelChange)="updateItemNote(item.id, $event)" />
+              </div>
             </div>
             <div class="booking-buttons">
-              <button *ngIf="isAdmin || isTech" class="btn-edit-mini" (click)="openCreateModal(item)"
-                title="Edit Master Item">
+              <button *ngIf="isCatalogMode && (isAdmin || isTech)" class="btn-edit-item"
+                (click)="openCreateModal(item)" title="Edit item / quantity">
                 <i class="fas fa-edit"></i>
+                <span>Edit</span>
               </button>
-              <button *ngIf="isAdmin || isManager" class="btn-add-mini" (click)="addToCart(item)"
+              <button *ngIf="!isCatalogMode || isAdmin || isTech" class="btn-report-damage"
+                (click)="onReportDamage(item)" title="Report Damage">
+                <i class="fas fa-exclamation-triangle"></i>
+              </button>
+              <button *ngIf="(isAdmin || isManager) && !isCatalogMode" class="btn-add-mini" (click)="addToCart(item)"
                 [disabled]="isPastEvent() || getQtyForItem(item.id) <= 0"
-                [class.btn-overbook]="isShortageAfterAdd(item)">
+                [class.btn-overbook]="isShortageAfterAdd(item)"
+                [title]="isShortageAfterAdd(item) ? 'Adding this quantity will overbook the stock' : 'Add to cart'">
                 <i class="fas fa-plus"></i>
-                <span>{{ isShortageAfterAdd(item) ? 'Add (Overbook)' : 'Add' }}</span>
+                <span>{{ isShortageAfterAdd(item) ? 'Overbook' : 'Add' }}</span>
               </button>
             </div>
           </div>
@@ -150,7 +172,7 @@
   </div>
 
   <!-- Cart Floating Button -->
-  <button *ngIf="isAdmin || isManager" class="floating-cart-btn" (click)="goToCart()">
+  <button *ngIf="(isAdmin || isManager) && !isCatalogMode" class="floating-cart-btn" (click)="goToCart()">
     <i class="fas fa-shopping-cart"></i>
     <span class="badge" *ngIf="cartCount > 0">{{ cartCount }}</span>
   </button>
@@ -266,6 +288,12 @@
           </div>
 
           <div class="form-group">
+            <label><i class="fas fa-tools"></i> Repair Qty (Broken Items)</label>
+            <input type="number" [ngModel]="newItem.spec?.repair_qty || 0" (ngModelChange)="onRepairQtyChange($event)"
+              placeholder="Number of units in repair">
+          </div>
+
+          <div class="form-group">
             <label>Price (Rental/Replacement)</label>
             <input type="number" [(ngModel)]="newItem.price" min="0">
           </div>
@@ -280,6 +308,51 @@
       <div class="modal-actions">
         <button class="btn-secondary" (click)="closeCreateModal()">Cancel</button>
         <button class="btn-primary" (click)="createItem()">{{ newItem.id ? 'Save Changes' : 'Create' }}</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Report Damage Modal -->
+  <div class="modal-overlay" *ngIf="showDamageModal" (click)="closeDamageModal()">
+    <div class="modal-content glass-modal damage-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>⚠️ Report Broken Item</h2>
+        <button class="close-btn" (click)="closeDamageModal()">×</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="damage-item-summary">
+          <strong>{{ damageItem?.name }}</strong>
+          <div class="damage-stock-row">
+            <span class="stock-chip">Total: {{ damageItem?.totalQuantity || 0 }} {{ damageItem?.uom || 'units' }}</span>
+            <span class="stock-chip repair" *ngIf="getRepairQty(damageItem) > 0">
+              In repair: {{ getRepairQty(damageItem) }}
+            </span>
+            <span class="stock-chip ok">Reportable: {{ getMaxDamageQty() }}</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Broken quantity <span class="required">*</span></label>
+          <input type="number" [(ngModel)]="damageQty" min="1" [max]="getMaxDamageQty()" inputmode="numeric">
+          <small class="hint warn" *ngIf="damageQty > getMaxDamageQty()">
+            Cannot exceed {{ getMaxDamageQty() }} — the rest are already in repair or don't exist.
+          </small>
+        </div>
+
+        <p class="damage-note">
+          The broken quantity is deducted from available stock immediately.
+          A Tech Lead or Admin will then decide in <b>Maintenance</b> whether it is repaired (returned to stock)
+          or written off permanently.
+        </p>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-cancel" (click)="closeDamageModal()">Cancel</button>
+        <button class="btn-confirm danger" (click)="confirmReportDamage()"
+          [disabled]="damageQty <= 0 || damageQty > getMaxDamageQty()">
+          <i class="fas fa-exclamation-triangle"></i> Report Broken
+        </button>
       </div>
     </div>
   </div>

@@ -11,8 +11,11 @@
 }
 
 .dashboard-wrapper {
+  width: 100%;
   max-width: 1200px;
   margin: 0 auto;
+  padding: 2rem;
+  overflow-x: hidden;
 }
 
 .page-header {
@@ -144,5 +147,30 @@
 
   .action-center {
     flex-direction: column;
+  }
+}
+
+/* Mobile-first adjustments for very small screens */
+@media (max-width: 480px) {
+  .page-header h1 {
+    font-size: 1.75rem;
+  }
+
+  .page-header .subtitle {
+    font-size: 1rem;
+  }
+
+  .grid-cards {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .dashboard-wrapper {
+    padding: 1rem;
+  }
+
+  .btn-primary {
+    padding: 0.75rem 1.5rem;
+    font-size: 0.875rem;
   }
 }

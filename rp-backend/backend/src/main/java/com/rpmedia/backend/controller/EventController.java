@@ -16,11 +16,13 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/events")
-@CrossOrigin(origins = { "http://localhost:4200", "http://localhost:3000" }, allowedHeaders = "*", methods = {
+@CrossOrigin(origins = "*", allowedHeaders = "*", methods = {
         RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE })
 public class EventController {
 
@@ -77,8 +79,19 @@ public class EventController {
                     existing.setLocation(updatedEvent.getLocation());
                     existing.setDepartment(updatedEvent.getDepartment());
                     existing.setCreatedBy(updatedEvent.getCreatedBy());
-                    if (updatedEvent.getCustomFields() != null)
-                        existing.setCustomFields(updatedEvent.getCustomFields());
+                    if (updatedEvent.getManagers() != null) {
+                        existing.getManagers().clear();
+                        existing.getManagers().addAll(updatedEvent.getManagers());
+                    }
+                    // Merge customFields so partial updates (e.g. category from the
+                    // calendar modal) don't wipe other keys like rooms
+                    if (updatedEvent.getCustomFields() != null) {
+                        Map<String, Object> merged = existing.getCustomFields() != null
+                                ? new HashMap<>(existing.getCustomFields())
+                                : new HashMap<>();
+                        merged.putAll(updatedEvent.getCustomFields());
+                        existing.setCustomFields(merged);
+                    }
                     return ResponseEntity.ok(eventRepository.save(existing));
                 })
                 .orElse(ResponseEntity.notFound().build());

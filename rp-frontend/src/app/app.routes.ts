@@ -31,6 +31,16 @@ export const routes: Routes = [
     data: { roles: ['ADMIN', 'MANAGER', 'TECHNICAL', 'TECH_LEAD'] },
   },
 
+  // ✅ Equipment Item Catalog (no event context: browse + edit master items)
+  {
+    path: 'inventory/items',
+    loadComponent: () =>
+      import('./pages/inventory/inventory-page/inventory-page.component').then(m => m.InventoryPageComponent),
+    title: 'Equipment Items',
+    canMatch: [authGuard, roleGuard],
+    data: { roles: ['ADMIN', 'MANAGER', 'TECHNICAL', 'TECH_LEAD'] },
+  },
+
   // ✅ Event-First Inventory Flow (all require eventId)
   {
     path: 'inventory/event/:eventId',
@@ -78,13 +88,34 @@ export const routes: Routes = [
     canMatch: [authGuard, roleGuard],
     data: { roles: ['ADMIN', 'MANAGER', 'TECHNICAL', 'TECH_LEAD', 'EMPLOYEE'] }
   },
+  {
+    path: 'history/logs',
+    loadComponent: () => import('./pages/history/system-log-page/system-log-page.component').then(m => m.SystemLogPageComponent),
+    title: 'System Logs',
+    canMatch: [authGuard, roleGuard],
+    data: { roles: ['ADMIN', 'TECH_LEAD'] }
+  },
 
   {
-    path: 'admin/pending-users',
-    loadComponent: () =>
-      import('./pages/admin/pending-users-page/pending-users-page.component')
-        .then(m => m.PendingUsersPageComponent),
-    title: 'Pending Users',
+    path: 'admin',
+    children: [
+      {
+        path: 'pending-users',
+        loadComponent: () => import('./pages/admin/pending-users-page/pending-users-page.component').then(m => m.PendingUsersPageComponent)
+      },
+      {
+        path: 'system-log',
+        loadComponent: () => import('./pages/admin/system-log-page/system-log-page.component').then(m => m.SystemLogPageComponent)
+      },
+      {
+        path: 'dashboard',
+        loadComponent: () => import('./pages/admin/dashboard-page/dashboard-page.component').then(m => m.DashboardPageComponent)
+      },
+      {
+        path: 'item-summary',
+        loadComponent: () => import('./pages/admin/summary-all-items-page/summary-all-items-page.component').then(m => m.SummaryAllItemsPageComponent)
+      }
+    ],
     canMatch: [authGuard, roleGuard],
     data: { roles: ['ADMIN', 'TECH_LEAD'] }
   },
@@ -107,6 +138,22 @@ export const routes: Routes = [
     canMatch: [authGuard, roleGuard],
     data: { roles: ['ADMIN', 'MANAGER', 'TECHNICAL', 'TECH_LEAD'] },
   },
+  {
+    path: 'dashboard/items',
+    loadComponent: () => import('./pages/dashboard/item-dashboard-page/item-dashboard-page.component')
+      .then(m => m.ItemDashboardPageComponent),
+    title: 'Item Dashboard',
+    canMatch: [authGuard, roleGuard],
+    data: { roles: ['ADMIN', 'MANAGER', 'TECHNICAL', 'TECH_LEAD'] },
+  },
+  {
+    path: 'dashboard/summary',
+    loadComponent: () => import('./pages/dashboard/item-summary-page/item-summary-page.component')
+      .then(m => m.ItemSummaryPageComponent),
+    title: 'Item Summary',
+    canMatch: [authGuard, roleGuard],
+    data: { roles: ['ADMIN', 'MANAGER', 'TECHNICAL', 'TECH_LEAD'] },
+  },
 
   {
     path: 'inventory/:eventId/availability',
@@ -115,7 +162,7 @@ export const routes: Routes = [
         .then(m => m.EquipmentAvailabilityPageComponent),
     title: 'Equipment Availability',
     canMatch: [authGuard, roleGuard],
-    data: { roles: ['MANAGER', 'ADMIN'] }
+    data: { roles: ['MANAGER', 'ADMIN', 'TECH_LEAD'] }
   },
 
   // ❌ Removed standalone cart route - must go through event context

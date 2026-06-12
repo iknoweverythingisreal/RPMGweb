@@ -62,14 +62,19 @@ public class UnifiedAvailabilityService {
                         dto.setShortage(0);
 
                 } else {
-
                         ItemQuantityAvailabilityDTO qtyDTO = qtyService.getQtyAvailability(itemId, eventId, start, end);
+
+                        // 🔹 Subtract repair quantity from spec JSON
+                        int repairQty = 0;
+                        if (item.getSpec() != null && item.getSpec().has("repair_qty")) {
+                                repairQty = item.getSpec().get("repair_qty").asInt();
+                        }
 
                         dto.setQty(qtyDTO);
                         dto.setTotal(qtyDTO.getTotal());
                         dto.setAllocated(qtyDTO.getAllocated());
-                        dto.setAvailable(qtyDTO.getAvailable());
-                        dto.setShortage(qtyDTO.getShortage());
+                        dto.setAvailable(Math.max(0, qtyDTO.getAvailable() - repairQty));
+                        dto.setShortage(qtyDTO.getShortage() + Math.max(0, repairQty - qtyDTO.getAvailable()));
                 }
 
                 return dto;
@@ -105,7 +110,14 @@ public class UnifiedAvailabilityService {
 
                                         int total = item.getTotalQuantity() != null ? item.getTotalQuantity() : 0;
                                         int allocated = allocatedMap.getOrDefault(item.getId(), 0);
-                                        int available = total - allocated;
+
+                                        // 🔹 Subtract repair quantity from spec JSON
+                                        int repairQty = 0;
+                                        if (item.getSpec() != null && item.getSpec().has("repair_qty")) {
+                                                repairQty = item.getSpec().get("repair_qty").asInt();
+                                        }
+
+                                        int available = total - allocated - repairQty;
 
                                         dto.setTotal(total);
                                         dto.setAllocated(allocated);

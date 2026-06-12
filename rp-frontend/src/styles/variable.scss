@@ -2,6 +2,12 @@
    VARIABLES — THEME SYSTEM
    ====================================== */
 
+/* ----- BREAKPOINTS ----- */
+$bp-xs: 480px; // Small phones
+$bp-mobile: 768px; // Phones / portrait tablets
+$bp-tablet: 992px; // Landscape tablets / small laptops
+$bp-desktop: 1200px; // Desktop
+
 /* ----- COLORS ----- */
 $color-bg-dark: #020617;
 $color-bg-dark-2: #0b1b33;
@@ -35,7 +41,7 @@ $color-text-dim: rgba(255, 255, 255, 0.6);
 
 
 /* Border */
-$color-border: rgba(255,255,255,0.15);
+$color-border: rgba(255, 255, 255, 0.15);
 
 /* ----- SPACING ----- */
 $space-xxs: 4px;

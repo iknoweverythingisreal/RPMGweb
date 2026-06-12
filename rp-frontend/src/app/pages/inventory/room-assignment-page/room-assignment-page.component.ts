@@ -22,10 +22,10 @@ export class RoomAssignmentPageComponent implements OnInit {
   items = signal<any[]>([]);
   rooms = signal<string[]>([]);
   isLoading = signal<boolean>(false);
+  returnUrl: string | null = null;
 
-  // Zero-Friction UX: Active Room Logic
+  // UI State
   activeRoomName = signal<string | null>(null);
-  mobileTab = signal<'pool' | 'rooms'>('pool'); // Toggle between Pool and Designer on mobile
 
   // Progress Tracking
   totalQty = signal<number>(0);
@@ -53,6 +53,11 @@ export class RoomAssignmentPageComponent implements OnInit {
     this.route.params.subscribe(params => {
       this.eventId = +params['eventId'];
       this.loadAll();
+    });
+    this.route.queryParams.subscribe(params => {
+      if (params['returnUrl']) {
+        this.returnUrl = params['returnUrl'];
+      }
     });
   }
 
@@ -86,7 +91,11 @@ export class RoomAssignmentPageComponent implements OnInit {
           const requested = Number(it.requestedQuantity || 0);
           const allocated = Number(it.allocatedQuantity || 0);
           total += requested;
-          if (it.room && it.room !== 'Unassigned') {
+
+          // 🛠️ ROBUST ROOM EXTRACTION: Check top-level room OR metadata.room
+          const detectedRoom = it.room || it.metadata?.room || 'Unassigned';
+
+          if (detectedRoom && detectedRoom !== 'Unassigned') {
             assigned += requested;
           }
 
@@ -99,6 +108,7 @@ export class RoomAssignmentPageComponent implements OnInit {
 
           return {
             ...it,
+            room: detectedRoom, // Ensure room is set to the top level for UI
             requestedQuantity: requested,
             allocatedQuantity: allocated,
             moveQty: requested, // Default to move all for one-click efficiency
@@ -111,6 +121,19 @@ export class RoomAssignmentPageComponent implements OnInit {
         this.items.set(enhanced);
         this.totalQty.set(total);
         this.assignedQty.set(assigned);
+
+        // Recover rooms that exist on items but are missing from customFields.rooms
+        // (e.g. when an event edit elsewhere overwrote customFields)
+        const roomSet = new Set(this.rooms());
+        enhanced.forEach(it => {
+          if (it.room && it.room !== 'Unassigned') roomSet.add(it.room);
+        });
+        if (roomSet.size > this.rooms().length) {
+          const recovered = Array.from(roomSet);
+          this.rooms.set(recovered);
+          if (!this.activeRoomName()) this.activeRoomName.set(recovered[0]);
+        }
+
         this.isLoading.set(false);
       },
       error: (err) => {
@@ -177,9 +200,14 @@ export class RoomAssignmentPageComponent implements OnInit {
     this.executeMove(item, targetRoom);
   }
 
+  moveToRoom(item: any, targetRoom: string) {
+    if (!targetRoom) return;
+    this.executeMove(item, targetRoom);
+  }
+
   executeMove(item: any, targetRoom: string) {
     this.isLoading.set(true);
-    const qty = Math.floor(item.moveQty || item.requestedQuantity);
+    const qty = Math.floor(item.moveQty || item.requestedQuantity || 0);
 
     this.eventItemsService.assignToRoom(item.id, targetRoom, qty).subscribe({
       next: () => {
@@ -452,8 +480,63 @@ export class RoomAssignmentPageComponent implements OnInit {
     });
   }
 
+  goToInventory(room: string) {
+    const queryParams: any = { room };
+    if (this.returnUrl) queryParams.returnUrl = this.returnUrl;
+    this.router.navigate(['/inventory/event', this.eventId], { queryParams });
+  }
+
+  assignAllToActiveRoom() {
+    const targetRoom = this.activeRoomName();
+    if (!targetRoom) {
+      this.toastService.show('Please select or create a room first', 'warning');
+      return;
+    }
+    const unassigned = this.getUnassignedItems();
+    if (unassigned.length === 0) return;
+
+    this.isLoading.set(true);
+    const promises = unassigned.map(item =>
+      this.eventItemsService.assignToRoom(item.id, targetRoom, item.requestedQuantity).toPromise()
+    );
+
+    Promise.all(promises).then(() => {
+      this.loadItems();
+    }).catch(err => {
+      this.toastService.show('Failed to assign some items', 'error');
+      this.isLoading.set(false);
+    });
+  }
+
+  unassignAllFromRoom(room: string) {
+    const items = this.getItemsInRoom(room);
+    if (items.length === 0) return;
+
+    if (!confirm(`Unassign all ${items.length} items from ${room}?`)) return;
+
+    this.isLoading.set(true);
+    const promises = items.map(item =>
+      this.eventItemsService.assignToRoom(item.id, 'Unassigned', item.requestedQuantity).toPromise()
+    );
+
+    Promise.all(promises).then(() => {
+      this.loadItems();
+    }).catch(err => {
+      this.toastService.show('Failed to unassign some items', 'error');
+      this.isLoading.set(false);
+    });
+  }
+
+  goToEventSummary() {
+    this.router.navigate(['/history/event', this.eventId], { queryParams: { returnUrl: this.router.url } });
+  }
+
   goBack() {
-    this.router.navigate(['/inventory/event', this.eventId, 'cart']);
+    if (this.returnUrl) {
+      this.router.navigateByUrl(this.returnUrl);
+    } else {
+      this.router.navigate(['/history/event', this.eventId]);
+    }
   }
 
   finalizeBooking() {

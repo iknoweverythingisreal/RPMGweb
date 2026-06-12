@@ -1,0 +1,286 @@
+@use 'variable' as *;
+
+.dashboard-container {
+    padding: var(--page-padding);
+    background: rgba(15, 23, 42, 0.4);
+    min-height: calc(100vh - 64px);
+    color: white;
+}
+
+.dash-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+
+    h1 {
+        font-size: 2rem;
+        margin: 0;
+        background: linear-gradient(135deg, #fff 0%, #cbd5e1 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    p {
+        color: #94a3b8;
+        margin: 0.5rem 0 0;
+    }
+}
+
+.period-selectors {
+    display: flex;
+    gap: 0.75rem;
+    background: rgba(17, 24, 39, 0.8);
+    padding: 0.5rem;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+
+    select {
+        background: transparent;
+        border: none;
+        color: white;
+        padding: 0.25rem 0.5rem;
+        font-weight: 500;
+        cursor: pointer;
+
+        &:focus {
+            outline: none;
+        }
+
+        option {
+            background: #111827;
+        }
+    }
+}
+
+.stats-overview {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+
+    .stat-card {
+        background: rgba(17, 24, 39, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 1.5rem;
+        border-radius: 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
+
+        .icon-box {
+            width: 3.5rem;
+            height: 3.5rem;
+            border-radius: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+
+            &.blue {
+                background: rgba(59, 130, 246, 0.15);
+                color: #60a5fa;
+            }
+
+            &.red {
+                background: rgba(239, 68, 68, 0.15);
+                color: #f87171;
+            }
+
+            &.green {
+                background: rgba(34, 197, 94, 0.15);
+                color: #4ade80;
+            }
+        }
+
+        .stat-info {
+            label {
+                font-size: 0.85rem;
+                color: #94a3b8;
+                display: block;
+                margin-bottom: 0.25rem;
+            }
+
+            h3 {
+                font-size: 1.75rem;
+                margin: 0;
+                font-weight: 700;
+            }
+        }
+    }
+}
+
+.content-card {
+    background: rgba(17, 24, 39, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 1.25rem;
+    overflow: hidden;
+}
+
+.card-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 2rem;
+
+    .search-box {
+        flex: 1;
+        position: relative;
+
+        i {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #64748b;
+        }
+
+        input {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 0.75rem 1rem 0.75rem 3rem;
+            border-radius: 0.75rem;
+            color: white;
+
+            &:focus {
+                outline: none;
+                border-color: var(--primary-color);
+            }
+        }
+    }
+}
+
+.table-wrap {
+    overflow-x: auto;
+}
+
+.item-table {
+    width: 100%;
+    border-collapse: collapse;
+
+    th {
+        padding: 1.25rem 1.5rem;
+        text-align: left;
+        font-size: 0.8rem;
+        color: #94a3b8;
+        font-weight: 600;
+        text-transform: uppercase;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    td {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .col-name {
+        .item-name {
+            display: block;
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .item-brand {
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+    }
+
+    .cat-badge {
+        padding: 0.25rem 0.6rem;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 0.5rem;
+        font-size: 0.8rem;
+        color: #cbd5e1;
+    }
+
+    .util-bar-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+        width: 120px;
+
+        .pct {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #94a3b8;
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 3px;
+            overflow: hidden;
+
+            .fill {
+                height: 100%;
+                background: var(--primary-color);
+                border-radius: 3px;
+
+                &.med {
+                    background: #eab308;
+                }
+
+                &.high {
+                    background: #ef4444;
+                }
+            }
+        }
+    }
+
+    .shortage-badge {
+        color: #f87171;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .ok-badge {
+        color: #4ade80;
+        font-size: 0.85rem;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        opacity: 0.8;
+    }
+}
+
+.switch-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+
+    .lbl {
+        font-size: 0.9rem;
+        color: #94a3b8;
+    }
+}
+
+@media (max-width: 768px) {
+    .dash-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .period-selectors {
+        flex-wrap: wrap;
+        width: 100%;
+    }
+
+    .card-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+
+        .search-box {
+            width: 100%;
+        }
+    }
+}

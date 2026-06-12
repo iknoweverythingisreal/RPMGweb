@@ -233,7 +233,7 @@ export class SelectEventPageComponent implements OnInit {
    * Navigate to Equipment Management text (Inventory)
    */
   goToEquipment(eventId: number) {
-    this.router.navigate(['/inventory/event', eventId]);
+    this.router.navigate(['/inventory/event', eventId, 'room-assign'], { queryParams: { returnUrl: '/inventory/select-event' } });
   }
 
   /**

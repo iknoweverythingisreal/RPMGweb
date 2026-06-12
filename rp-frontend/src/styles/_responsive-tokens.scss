@@ -1,0 +1,149 @@
+/* =============================================================
+   RESPONSIVE TOKENS
+   ─────────────────────────────────────────────────────────────
+   HOW IT WORKS:
+   Define CSS custom properties (--vars) on :root for every
+   breakpoint. Components just use  var(--page-padding) etc.
+   No @media queries needed inside components at all.
+
+   BREAKPOINTS:
+     xs      ≤ 480px   tiny phones
+     mobile  ≤ 768px   phones
+     tablet  ≤ 992px   tablets / landscape phones
+     desktop > 992px   laptops & desktops (default / base)
+   ============================================================= */
+
+:root {
+    /* ── Page / Section Padding ──────────────────── */
+    --page-padding: 2.5rem;
+    /* outer container padding     */
+    --section-gap: 3rem;
+    /* gap between major sections  */
+    --card-padding: 2rem;
+    /* padding inside cards        */
+    --card-radius: 24px;
+    /* border-radius for cards     */
+
+    /* ── Grid / Layout ───────────────────────────── */
+    --grid-cols: 3;
+    /* hint for CSS grid columns   */
+    --grid-min-col: 280px;
+    /* min column width            */
+    --grid-gap: 2rem;
+    /* gap inside grids            */
+    --stats-cols: 3;
+    --overview-cols: 2;
+
+    /* ── Typography ──────────────────────────────── */
+    --font-page-title: 2.2rem;
+    --font-section-title: 1.6rem;
+    --font-card-value: 2.8rem;
+    --font-label: 0.95rem;
+    --font-body: 1rem;
+    --font-small: 0.85rem;
+
+    /* ── Component Sizes ─────────────────────────── */
+    --icon-size: 72px;
+    --icon-font: 1.8rem;
+    --icon-radius: 20px;
+    --tab-padding: 0.8rem 1.5rem;
+    --btn-height: 48px;
+
+    /* ── Header / Nav ────────────────────────────── */
+    --header-gap: 1.5rem;
+    --header-direction: row;
+    /* flex-direction for header   */
+}
+
+/* ── Tablet (≤ 992px) ──────────────────────────────────────── */
+@media (max-width: 992px) {
+    :root {
+        --page-padding: 1.5rem;
+        --section-gap: 2rem;
+        --card-padding: 1.5rem;
+        --card-radius: 20px;
+
+        --grid-cols: 2;
+        --grid-min-col: 260px;
+        --grid-gap: 1.5rem;
+        --stats-cols: 2;
+        --overview-cols: 1;
+
+        --font-page-title: 2rem;
+        --font-section-title: 1.4rem;
+        --font-card-value: 2.4rem;
+        --font-label: 0.9rem;
+
+        --icon-size: 60px;
+        --icon-font: 1.5rem;
+        --icon-radius: 16px;
+        --tab-padding: 0.7rem 1.2rem;
+
+        --header-gap: 1rem;
+        --header-direction: column;
+    }
+}
+
+/* ── Mobile (≤ 768px) ──────────────────────────────────────── */
+@media (max-width: 768px) {
+    :root {
+        --page-padding: 1rem;
+        --section-gap: 1.5rem;
+        --card-padding: 1.25rem;
+        --card-radius: 16px;
+
+        --grid-cols: 1;
+        --grid-min-col: 100%;
+        --grid-gap: 1rem;
+        --stats-cols: 2;
+        /* 2-col on phone feels right */
+        --overview-cols: 1;
+
+        --font-page-title: 1.6rem;
+        --font-section-title: 1.2rem;
+        --font-card-value: 2rem;
+        --font-label: 0.85rem;
+        --font-body: 0.95rem;
+
+        --icon-size: 52px;
+        --icon-font: 1.3rem;
+        --icon-radius: 14px;
+        --tab-padding: 0.6rem 1rem;
+        --btn-height: 42px;
+
+        --header-gap: 0.75rem;
+        --header-direction: column;
+    }
+}
+
+/* ── Extra-small phones (≤ 480px) ─────────────────────────── */
+@media (max-width: 480px) {
+    :root {
+        --page-padding: 0.75rem;
+        --section-gap: 1.25rem;
+        --card-padding: 1rem;
+        --card-radius: 14px;
+
+        --grid-cols: 1;
+        --grid-min-col: 100%;
+        --grid-gap: 0.75rem;
+        --stats-cols: 1;
+        --overview-cols: 1;
+
+        --font-page-title: 1.4rem;
+        --font-section-title: 1.1rem;
+        --font-card-value: 1.75rem;
+        --font-label: 0.8rem;
+        --font-body: 0.9rem;
+        --font-small: 0.78rem;
+
+        --icon-size: 44px;
+        --icon-font: 1.1rem;
+        --icon-radius: 12px;
+        --tab-padding: 0.5rem 0.75rem;
+        --btn-height: 38px;
+
+        --header-gap: 0.5rem;
+        --header-direction: column;
+    }
+}

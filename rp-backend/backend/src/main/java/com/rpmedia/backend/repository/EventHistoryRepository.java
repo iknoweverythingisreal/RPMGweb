@@ -12,4 +12,6 @@ public interface EventHistoryRepository extends JpaRepository<EventHistory, Long
 
     List<EventHistory> findByEventIdOrderByChangedAtDesc(Long eventId);
 
+    List<EventHistory> findAllByOrderByChangedAtDesc();
+
 }

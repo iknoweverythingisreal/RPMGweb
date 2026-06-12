@@ -195,7 +195,8 @@ export class HistoryDetailPageComponent implements OnInit {
     // canEdit is now handled by a helper method or directly in template
     checkCanEdit(user: any): boolean {
         const role = user?.role;
-        return role === 'ADMIN' || role === 'MANAGER';
+        const isPast = this.isPastEvent();
+        return (role === 'ADMIN' || role === 'MANAGER' || role === 'TECH_LEAD') && !isPast;
     }
 
     startEditQty(item: any) {
@@ -260,6 +261,28 @@ export class HistoryDetailPageComponent implements OnInit {
                 console.error('Failed to remove item:', err);
                 this.toastService.show('Failed to remove item', 'error');
             }
+        });
+    }
+
+    onReportDamage(item: any): void {
+        const itemId = item.item?.id || item.itemId;
+        if (!itemId) return;
+
+        const qtyStr = window.prompt(`How many units of ${this.getTitle(item)} are broken?`, '1');
+        if (!qtyStr) return;
+
+        const qty = parseInt(qtyStr, 10);
+        if (isNaN(qty) || qty <= 0) {
+            this.toastService.show('Please enter a valid quantity', 'error');
+            return;
+        }
+
+        this.itemsService.markItemForRepair(itemId, qty).subscribe({
+            next: () => {
+                this.toastService.show(`Reported ${qty} units of ${this.getTitle(item)} as DAMAGED`, 'warning');
+                this.loadEventData();
+            },
+            error: (err) => this.toastService.show('Failed to report damage: ' + (err?.error?.message || err.message), 'error')
         });
     }
 
@@ -387,11 +410,10 @@ export class HistoryDetailPageComponent implements OnInit {
 
     isPastEvent(): boolean {
         if (!this.event || !this.event.endDate) return false;
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
         const end = new Date(this.event.endDate);
-        end.setHours(0, 0, 0, 0);
-        return end < today;
+        const now = new Date();
+        const twoWeeksAfter = new Date(end.getTime() + (14 * 24 * 60 * 60 * 1000));
+        return now > twoWeeksAfter;
     }
 
     formatDate(dateStr: string): string {
@@ -493,6 +515,26 @@ export class HistoryDetailPageComponent implements OnInit {
             if (remark && !remark.includes('Rental')) return remark;
         }
         return name;
+    }
+
+    /** User-typed note on the booking. Stored in metadata.customName and/or remark.
+     *  Hidden when it's just the fallback copy of the item's description/master name. */
+    getUserNote(item: any): string {
+        if (!item || this.isNote(item)) return '';
+        const note = ((item.metadata?.customName || item.customName || item.remark) || '').trim();
+        if (!note) return '';
+
+        const desc = (item.description || item.item?.description || '').trim();
+        const masterName = (item.item?.name || '').trim();
+        if (note === desc || (masterName && note === masterName) || note === this.getTitle(item).trim()) return '';
+
+        return note;
+    }
+
+    /** Item name for the printed picklist — never the user note (customName leaks into itemName) */
+    getPrintName(item: any): string {
+        const name = (item.item?.name || item.itemName || '').trim();
+        return name === this.getUserNote(item) ? '' : name;
     }
 
     getDescription(item: any): string {

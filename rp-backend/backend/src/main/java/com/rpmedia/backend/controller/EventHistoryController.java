@@ -21,6 +21,11 @@ public class EventHistoryController {
         return service.getHistoryByEvent(eventId);
     }
 
+    @GetMapping
+    public List<EventHistory> getAllHistory() {
+        return service.getAllHistory();
+    }
+
     @PostMapping
     public EventHistory createHistory(@RequestBody Map<String, Object> request) {
         Long eventId = Long.valueOf(request.get("eventId").toString());

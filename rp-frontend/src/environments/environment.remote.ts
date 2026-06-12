@@ -1,4 +1,4 @@
 export const environment = {
     production: false,
-    apiUrl: 'https://rpmg.onrender.com'
+    apiUrl: 'https://avpro-backend.rpmediagroup.com'
 };

@@ -1,0 +1,104 @@
+<div class="log-container">
+    <header class="log-header">
+        <div class="header-left">
+            <button class="btn-back-glass" onclick="history.back()" aria-label="Back">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <div class="title-wrap">
+                <h1>System Audit Logs</h1>
+                <p>Institutional memory and system forensic trail</p>
+            </div>
+        </div>
+        <div class="header-right">
+            <button class="btn-refresh" (click)="loadLogs()" [disabled]="isLoading()">
+                <i class="fa-solid fa-rotate" [class.fa-spin]="isLoading()"></i> Refresh Audit
+            </button>
+        </div>
+    </header>
+
+    <div class="filter-bar">
+        <div class="search-box">
+            <i class="fa-solid fa-search"></i>
+            <input type="text" [(ngModel)]="searchTerm" (ngModelChange)="applyFilters()"
+                placeholder="Search by user, event, or note...">
+        </div>
+        <div class="filters">
+            <div class="filter-group">
+                <label>Action</label>
+                <select [(ngModel)]="selectedAction" (change)="applyFilters()">
+                    <option *ngFor="let a of actions" [value]="a">{{ a }}</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>From</label>
+                <input type="date" [(ngModel)]="startDate" (change)="applyFilters()">
+            </div>
+            <div class="filter-group">
+                <label>To</label>
+                <input type="date" [(ngModel)]="endDate" (change)="applyFilters()">
+            </div>
+        </div>
+    </div>
+
+    <div class="log-table-wrap">
+        <table class="log-table">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>User</th>
+                    <th>Action</th>
+                    <th>Event</th>
+                    <th>Details</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <ng-container *ngFor="let log of filteredLogs()">
+                    <tr>
+                        <td class="col-time">{{ formatDate(log.createdAt) }}</td>
+                        <td class="col-user">
+                            <div class="user-pill">
+                                <i class="fa-solid fa-circle-user"></i>
+                                {{ log.user?.name || 'System' }}
+                            </div>
+                        </td>
+                        <td class="col-action">
+                            <span class="action-badge" [attr.data-action]="log.action">
+                                <i class="fa-solid fa-bolt-lightning" style="margin-right: 6px; font-size: 0.7rem;"></i>
+                                {{ log.action }}
+                            </span>
+                        </td>
+                        <td class="col-event">
+                            <span class="event-id" (click)="viewEvent(log.eventId)" title="Click to view event">
+                                <i class="fa-solid fa-hashtag" style="font-size: 0.7rem;"></i>{{ log.eventId }}
+                            </span>
+                        </td>
+                        <td class="col-note">{{ log.note }}</td>
+                        <td class="col-btns">
+                            <button class="btn-icon" *ngIf="log.data" (click)="log.showDiff = !log.showDiff"
+                                [class.active]="log.showDiff" title="Toggle Data View">
+                                <i class="fa-solid fa-chevron-down"
+                                    [style.transform]="log.showDiff ? 'rotate(180deg)' : ''"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    <tr *ngIf="log.showDiff">
+                        <td colspan="6" class="diff-cell">
+                            <pre>{{ getDiff(log) }}</pre>
+                        </td>
+                    </tr>
+                </ng-container>
+            </tbody>
+        </table>
+
+        <div class="empty-state" *ngIf="!isLoading() && filteredLogs().length === 0">
+            <i class="fa-solid fa-info-circle"></i>
+            <p>No logs found matching your filters.</p>
+        </div>
+
+        <div class="loading-state" *ngIf="isLoading()">
+            <div class="spinner"></div>
+            <p>Fetching audit trail...</p>
+        </div>
+    </div>
+</div>

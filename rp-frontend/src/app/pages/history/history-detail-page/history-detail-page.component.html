@@ -33,11 +33,11 @@
                 </div>
             </div>
             <div class="header-right">
-                <button class="btn-add-items" *ngIf="!isPastEvent() && userService.isManager && !userService.isTechLead"
+                <!-- <button class="btn-add-items" *ngIf="!isPastEvent() && userService.isManager && !userService.isTechLead"
                     (click)="addMoreItems()">
                     <i class="fas fa-plus"></i>
                     <span>Add Equipment</span>
-                </button>
+                </button> -->
                 <div class="badge-status past" *ngIf="isPastEvent()">
                     <i class="fas fa-clock"></i>
                     <span>PAST EVENT</span>
@@ -175,6 +175,10 @@
                                             *ngIf="getDescription(item) && getDescription(item) !== getTitle(item) && getDescription(item) !== item.itemName">
                                             {{ getDescription(item) }}
                                         </div>
+
+                                        <div class="item-note-line" *ngIf="getUserNote(item)">
+                                            <i class="fas fa-sticky-note"></i> {{ getUserNote(item) }}
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="item-actions-stack">
@@ -201,6 +205,10 @@
                                             <button class="btn-tile-delete" (click)="deleteItem(item)"
                                                 title="Remove Item">
                                                 <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                            <button class="btn-tile-damage" (click)="onReportDamage(item)"
+                                                title="Report Damage">
+                                                <i class="fas fa-exclamation-triangle"></i>
                                             </button>
                                         </ng-container>
                                     </div>
@@ -275,6 +283,10 @@
                                             *ngIf="getDescription(item) && getDescription(item) !== getTitle(item) && getDescription(item) !== item.itemName">
                                             {{ getDescription(item) }}
                                         </div>
+
+                                        <div class="item-note-line" *ngIf="getUserNote(item)">
+                                            <i class="fas fa-sticky-note"></i> {{ getUserNote(item) }}
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="item-actions-stack">
@@ -301,6 +313,10 @@
                                             <button class="btn-tile-delete" (click)="deleteItem(item)"
                                                 title="Remove Item">
                                                 <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                            <button class="btn-tile-damage" (click)="onReportDamage(item)"
+                                                title="Report Damage">
+                                                <i class="fas fa-exclamation-triangle"></i>
                                             </button>
                                         </ng-container>
                                     </div>
@@ -361,7 +377,10 @@
                         <div class="col-name">
                             <span class="brand" *ngIf="item.brand">{{ item.brand }}</span>
                             <span class="model" *ngIf="item.model">{{ item.model }}</span>
-                            <span class="item-text">{{ item.itemName || item.item?.name }}</span>
+                            <span class="item-text">{{ getPrintName(item) }}</span>
+                            <div class="print-note-line" *ngIf="getUserNote(item)">
+                                📝 NOTE: {{ getUserNote(item) }}
+                            </div>
                         </div>
                         <div class="col-qty">{{ item.requestedQuantity || item.allocatedQuantity || 0 }}</div>
                         <div class="col-avail">{{ item.allocatedQuantity || 0 }}</div>
@@ -395,14 +414,14 @@
                         <div class="col-name">
                             <span class="brand" *ngIf="item.brand">{{ item.brand }}</span>
                             <span class="model" *ngIf="item.model">{{ item.model }}</span>
-                            <span class="item-text">{{ item.itemName || item.item?.name }}</span>
+                            <span class="item-text">{{ getPrintName(item) }}</span>
                             <div class="external-tag" *ngIf="item.source === 'RENT_EXTERNAL'">
-                                [EXTERNAL RENTAL: {{ item.remark }}]
+                                [EXTERNAL RENTAL]
                             </div>
                         </div>
                         <div class="col-qty">{{ item.requestedQuantity || 0 }}</div>
                         <div class="col-cat">{{ item.category || item.item?.category }}</div>
-                        <div class="col-over">{{ item.remark || '' }}</div>
+                        <div class="col-over">{{ getUserNote(item) || item.remark || '' }}</div>
                     </div>
                 </div>
             </div>
@@ -419,6 +438,24 @@
                 <div class="print-note-item" *ngFor="let note of noteItems">
                     <strong>{{ note.itemName || note.item?.name }}:</strong>
                     <span>{{ getNoteContent(note.remark) }}</span>
+                </div>
+            </div>
+
+            <div class="print-signatures">
+                <div class="sig-box">
+                    <p>_________________________</p>
+                    <p class="sig-label">ผู้เบิก (Requester)</p>
+                    <p>วันที่ (Date): ____/____/____</p>
+                </div>
+                <div class="sig-box">
+                    <p>_________________________</p>
+                    <p class="sig-label">เจ้าหน้าที่คลัง (Warehouse/Tech Lead)</p>
+                    <p>วันที่ (Date): ____/____/____</p>
+                </div>
+                <div class="sig-box">
+                    <p>_________________________</p>
+                    <p class="sig-label">ผู้อนุมัติ (Approver/Manager)</p>
+                    <p>วันที่ (Date): ____/____/____</p>
                 </div>
             </div>
 

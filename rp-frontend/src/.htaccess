@@ -1,0 +1,21 @@
+# Angular SPA routing on Hostinger (Apache/LiteSpeed)
+# Without this, refreshing /calendar or /inventory/... returns 404
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+    # Serve existing files/directories as-is
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+    # Everything else goes to the Angular entry point
+    RewriteRule ^ index.html [L]
+</IfModule>
+
+# Basic caching for hashed build assets
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType application/javascript "access plus 1 year"
+    ExpiresByType text/css "access plus 1 year"
+    ExpiresByType image/png "access plus 1 month"
+    ExpiresByType image/svg+xml "access plus 1 month"
+</IfModule>

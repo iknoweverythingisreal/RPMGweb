@@ -1,6 +1,9 @@
 export const environment = {
     production: true,
-    // Please replace this with your actual Render/Railway backend URL!
-    // Example: 'https://my-backend-rpmedia.onrender.com'
-    apiUrl: 'https://rpmg.onrender.com'
+    // Same-origin deployment: frontend and backend live behind the same domain,
+    // with the web server proxying /api/** to the Spring Boot app (see DEPLOY.md).
+    // This keeps the build host-agnostic — no domain ever needs to be baked in.
+    // If the backend is ever hosted on a DIFFERENT domain, put its full URL here
+    // (e.g. 'https://api.example.com') and rebuild.
+    apiUrl: 'https://avpro-backend.rpmediagroup.co'
 };

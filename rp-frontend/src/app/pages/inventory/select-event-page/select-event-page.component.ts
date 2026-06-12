@@ -44,6 +44,6 @@ export class SelectEventPageComponent implements OnInit {
   }
 
   openEvent(eventId: number) {
-    this.router.navigate(['/inventory', eventId]);
+    this.router.navigate(['/inventory/event', eventId, 'room-assign']);
   }
 }

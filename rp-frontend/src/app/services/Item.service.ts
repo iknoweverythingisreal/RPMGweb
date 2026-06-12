@@ -38,9 +38,10 @@ export interface Item {
   serial?: string;
   description?: string;
   uom?: string;
-  itemName?: string; // API field variation
-  title?: string;    // API field variation
-  originalItems?: Item[]; // For aggregated items
+  itemName?: string;
+  title?: string;
+  spec?: any; // JSONB metadata including repair_qty
+  originalItems?: Item[];
 }
 
 @Injectable({
@@ -92,5 +93,26 @@ export class ItemsService {
 
   getServiceItems(): Observable<Item[]> {
     return this.searchItems('External Rental');
+  }
+
+  // === REPAIR MANAGEMENT ===
+
+  markItemForRepair(itemId: number, quantity: number): Observable<any> {
+    return this.http.post(`${environment.apiUrl}/api/repair/items/${itemId}/mark`, { quantity });
+  }
+
+  releaseItemFromRepair(itemId: number, quantity: number): Observable<any> {
+    return this.http.post(`${environment.apiUrl}/api/repair/items/${itemId}/release`, { quantity });
+  }
+
+  /** Permanently scrap broken units: removes them from repair AND total stock. */
+  writeOffItem(itemId: number, quantity: number): Observable<any> {
+    return this.http.post(`${environment.apiUrl}/api/repair/items/${itemId}/writeoff`, { quantity });
+  }
+
+  updateUnitStatus(unitId: number, status: string): Observable<any> {
+    return this.http.put(`${environment.apiUrl}/api/repair/units/${unitId}/status`, {}, {
+      params: { status }
+    });
   }
 }

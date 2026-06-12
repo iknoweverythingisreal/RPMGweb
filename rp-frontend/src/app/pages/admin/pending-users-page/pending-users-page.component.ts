@@ -43,8 +43,8 @@ export class PendingUsersPageComponent implements OnInit {
   load() {
     this.loading = true;
 
-    // Load Users — skip for TECH_LEAD (no access to user approval API)
-    if (!this.userService.isTechLead) {
+    // Load Users — accessible to ADMIN and TECH_LEAD
+    if (this.userService.canManageUsers) {
       this.adminService.getPendingUsers().subscribe({
         next: (res: any) => {
           this.pendingUsers = res.pendingUsers || [];

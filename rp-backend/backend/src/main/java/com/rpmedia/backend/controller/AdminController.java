@@ -20,7 +20,7 @@ import java.util.*;
 @RestController
 @RequestMapping("/api/admin")
 @CrossOrigin(origins = "*")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAnyRole('ADMIN', 'TECH_LEAD')")
 public class AdminController {
 
     @Autowired
@@ -81,8 +81,9 @@ public class AdminController {
                 "active", active));
     }
 
-    // ✅ 4. ลบผู้ใช้ (Soft Delete)
+    // ✅ 4. ลบผู้ใช้ (Soft Delete) - Restricted to ADMIN ONLY
     @DeleteMapping("/users/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> deleteUser(@PathVariable("id") Long id) {
         var userOpt = userRepository.findById(id);
         if (userOpt.isEmpty()) {

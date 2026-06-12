@@ -24,7 +24,8 @@ export class InventoryPageComponent implements OnInit, OnDestroy {
   filteredItems = signal<Item[]>([]);
   selectedCategory = signal<string>('all');
   searchQuery = signal<string>('');
-  selectedLocation = signal<string>('');
+  selectedLocation = signal<string | null>(null);
+  activeRoom = signal<string | null>(null); // NEW: The room we are currently filling
   currentLang = signal<'en' | 'th'>('en');
   eventId!: number;
   selectedEventId!: number;
@@ -34,6 +35,8 @@ export class InventoryPageComponent implements OnInit, OnDestroy {
   bookedMap = signal<Map<number, number>>(new Map()); // ItemId -> BookedQty
   eventName = signal<string>('Equipment Inventory');
   cart = signal<any[]>([]); // Reactive cart state
+  itemNotes = signal<Map<number, string>>(new Map()); // itemId -> note string
+  returnUrl: string | null = null;
 
   // Admin Item Management
   showCreateModal = false;
@@ -130,6 +133,11 @@ export class InventoryPageComponent implements OnInit, OnDestroy {
     private http: HttpClient
   ) { }
 
+  /** Catalog mode (/inventory/items): browse + manage master items, no event booking */
+  get isCatalogMode(): boolean {
+    return !this.eventId;
+  }
+
   ngOnInit() {
     this.eventId = Number(this.route.snapshot.paramMap.get('eventId'));
 
@@ -137,13 +145,21 @@ export class InventoryPageComponent implements OnInit, OnDestroy {
     if (this.eventId) {
       this.selectedEventId = this.eventId;
       localStorage.setItem('selectedEventId', String(this.eventId));
+    } else {
+      this.eventName.set('Equipment Item');
     }
 
     this.loadItems();
     this.refreshCartSignal();
 
-    // ⭐ AUTO-TRIGGER: Open rental modal if redirected from Cart
+    // ⭐ READ ROOM FROM QUERY PARAMS
     this.route.queryParams.subscribe(params => {
+      if (params['room']) {
+        this.activeRoom.set(params['room']);
+      }
+      if (params['returnUrl']) {
+        this.returnUrl = params['returnUrl'];
+      }
       if (params['openRental'] === 'true') {
         setTimeout(() => this.openRentalModal(), 500); // Small delay to ensure view is ready
       }
@@ -191,6 +207,63 @@ export class InventoryPageComponent implements OnInit, OnDestroy {
         this.loadEventAndAvailability();
       }
     });
+  }
+
+  // Damage report modal state
+  showDamageModal = false;
+  damageItem: any = null;
+  damageQty = 1;
+
+  onReportDamage(item: any) {
+    this.damageItem = item;
+    this.damageQty = 1;
+    this.showDamageModal = true;
+  }
+
+  closeDamageModal() {
+    this.showDamageModal = false;
+    this.damageItem = null;
+  }
+
+  /** Units of the selected item that can still be reported broken. */
+  getMaxDamageQty(): number {
+    if (!this.damageItem) return 0;
+    return Math.max(0, (this.damageItem.totalQuantity || 0) - this.getRepairQty(this.damageItem));
+  }
+
+  confirmReportDamage() {
+    const item = this.damageItem;
+    if (!item) return;
+
+    const qty = Number(this.damageQty);
+    if (!Number.isInteger(qty) || qty <= 0) {
+      this.toastService.show('Please enter a valid quantity', 'error');
+      return;
+    }
+    if (qty > this.getMaxDamageQty()) {
+      this.toastService.show(`Only ${this.getMaxDamageQty()} units of ${item.name} can be reported broken`, 'error');
+      return;
+    }
+
+    // For grouped items, we report damage to the first original item
+    const targetId = item.originalItems?.[0]?.id || item.id;
+
+    this.itemsService.markItemForRepair(targetId, qty).subscribe({
+      next: () => {
+        this.toastService.show(`Reported ${qty} ${item.uom || 'units'} of ${item.name} as DAMAGED`, 'warning');
+        this.closeDamageModal();
+        this.loadItems(); // Refresh to update availability and repair counts
+      },
+      error: (err) => this.toastService.show('Failed to report damage: ' + (err?.error?.message || err.message), 'error')
+    });
+  }
+
+  getRepairQty(item: any): number {
+    let sum = 0;
+    (item.originalItems || []).forEach((original: any) => {
+      sum += original.spec?.repair_qty || 0;
+    });
+    return sum;
   }
 
   loadEventAndAvailability() {
@@ -608,14 +681,25 @@ export class InventoryPageComponent implements OnInit, OnDestroy {
     this.toastService.show(`✅ Added ${requestedQty} ${item.name} to cart`, 'success');
     this.saveCart(cart);
 
-    // Reset quantity
+    // Reset quantity and note
     const resetMap = new Map(this.itemQuantities());
     resetMap.set(item.id, 1);
     this.itemQuantities.set(resetMap);
+
+    const resetNotes = new Map(this.itemNotes());
+    resetNotes.delete(item.id);
+    this.itemNotes.set(resetNotes);
+  }
+
+  updateItemNote(itemId: number, note: string) {
+    const map = new Map(this.itemNotes());
+    map.set(itemId, note);
+    this.itemNotes.set(map);
   }
 
   private pushToCart(cart: any[], item: any, qty: number) {
-    const existing = cart.find((c: any) => c.itemId === item.id);
+    const room = this.activeRoom();
+    const existing = cart.find((c: any) => c.itemId === item.id && c.room === room);
     if (existing) {
       existing.qty += qty;
     } else {
@@ -628,7 +712,9 @@ export class InventoryPageComponent implements OnInit, OnDestroy {
         unitPrice: 0,
         brand: item.brand,
         model: item.model,
-        description: item.description
+        description: item.description,
+        room: room, // Include the room in metadata
+        note: this.itemNotes().get(item.id) || ''
       });
     }
   }
@@ -696,7 +782,9 @@ export class InventoryPageComponent implements OnInit, OnDestroy {
       this.router.navigate(['/inventory/select-event']);
       return;
     }
-    this.router.navigate(['/inventory/event', this.eventId, 'cart']);
+    const queryParams: any = {};
+    if (this.returnUrl) queryParams.returnUrl = this.returnUrl;
+    this.router.navigate(['/inventory/event', this.eventId, 'cart'], { queryParams });
   }
 
   // 🔹 ใช้โชว์จำนวน item ใน cart
@@ -708,7 +796,12 @@ export class InventoryPageComponent implements OnInit, OnDestroy {
 
   // 🔹 ย้อนกลับไปหน้า Event Detail
   goBack() {
-    if (this.eventId) {
+    if (this.activeRoom()) {
+      // If we are filling a specific room, back should go to Room Assignment
+      const queryParams: any = {};
+      if (this.returnUrl) queryParams.returnUrl = this.returnUrl;
+      this.router.navigate(['/inventory/event', this.eventId, 'room-assign'], { queryParams });
+    } else if (this.eventId) {
       this.router.navigate(['/inventory/select-event']);
     } else {
       this.router.navigate(['/calendar']);
@@ -749,6 +842,13 @@ export class InventoryPageComponent implements OnInit, OnDestroy {
       };
     }
     this.showCreateModal = true;
+    // Update local data
+    this.refreshCartSignal();
+  }
+
+  onRepairQtyChange(value: any) {
+    if (!this.newItem.spec) this.newItem.spec = {};
+    this.newItem.spec.repair_qty = Number(value);
   }
 
   closeCreateModal() {
@@ -860,11 +960,10 @@ export class InventoryPageComponent implements OnInit, OnDestroy {
    */
   isPastEvent(): boolean {
     if (!this.eventDates) return false;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
     const end = new Date(this.eventDates.end);
-    end.setHours(0, 0, 0, 0);
-    return end < today;
+    const now = new Date();
+    const twoWeeksAfter = new Date(end.getTime() + (14 * 24 * 60 * 60 * 1000));
+    return now > twoWeeksAfter;
   }
 
   async submitRentalRequest() {

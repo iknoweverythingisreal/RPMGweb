@@ -1,0 +1,117 @@
+<div class="dashboard-container">
+    <header class="dash-header">
+        <div class="header-left">
+            <h1>Equipment Utilization</h1>
+            <p>Monitor stock levels, shortages, and item demand</p>
+        </div>
+        <div class="header-right">
+            <div class="period-selectors">
+                <select [(ngModel)]="selectedMonth" (change)="loadData()">
+                    <option *ngFor="let m of months" [value]="m.value">{{ m.name }}</option>
+                </select>
+                <select [(ngModel)]="selectedYear" (change)="loadData()">
+                    <option *ngFor="let y of years" [value]="y">{{ y }}</option>
+                </select>
+            </div>
+            <button class="btn-refresh" (click)="loadData()" [disabled]="isLoading()">
+                <i class="fa-solid fa-sync" [class.fa-spin]="isLoading()"></i>
+            </button>
+        </div>
+    </header>
+
+    <div class="stats-overview">
+        <div class="stat-card">
+            <div class="icon-box blue"><i class="fa-solid fa-boxes-stacked"></i></div>
+            <div class="stat-info">
+                <label>Total Items</label>
+                <h3>{{ items().length }}</h3>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="icon-box red"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            <div class="stat-info">
+                <label>Shortages Found</label>
+                <h3>{{ shortageCount }}</h3>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="icon-box green"><i class="fa-solid fa-chart-line"></i></div>
+            <div class="stat-info">
+                <label>Avg. Utilization</label>
+                <h3>74%</h3>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-card">
+        <div class="card-header">
+            <div class="search-box">
+                <i class="fa-solid fa-search"></i>
+                <input type="text" [(ngModel)]="searchTerm" (ngModelChange)="applyFilters()"
+                    placeholder="Filter items or categories...">
+            </div>
+            <div class="toggle-group">
+                <label class="switch-wrap">
+                    <input type="checkbox" [(ngModel)]="showShortagesOnly" (change)="applyFilters()">
+                    <span class="slider"></span>
+                    <span class="lbl">Shortages Only</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="table-wrap">
+            <table class="item-table">
+                <thead>
+                    <tr>
+                        <th>Equipment Name</th>
+                        <th>Category</th>
+                        <th>Total Stock</th>
+                        <th>Peak Demand</th>
+                        <th>Utilization</th>
+                        <th>Shortage Events</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr *ngFor="let item of filteredItems()">
+                        <td class="col-name">
+                            <span class="item-name">{{ item.name }}</span>
+                            <span class="item-brand" *ngIf="item.brand">{{ item.brand }} {{ item.model }}</span>
+                        </td>
+                        <td class="col-cat">
+                            <span class="cat-badge">{{ item.category?.name || 'Other' }}</span>
+                        </td>
+                        <td class="col-stock">{{ item.totalStock }}</td>
+                        <td class="col-demand">{{ item.maxBooked }}</td>
+                        <td class="col-util">
+                            <div class="util-bar-wrap">
+                                <span class="pct">{{ getUsagePercentage(item) }}%</span>
+                                <div class="progress-bar">
+                                    <div class="fill" [style.width.%]="getUsagePercentage(item)"
+                                        [class.high]="getUsagePercentage(item) > 90"
+                                        [class.med]="getUsagePercentage(item) > 50"></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="col-shortage">
+                            <span class="shortage-badge" *ngIf="item.shortageCount > 0">
+                                <i class="fa-solid fa-warning"></i> {{ item.shortageCount }} Events
+                            </span>
+                            <span class="ok-badge" *ngIf="item.shortageCount === 0">
+                                <i class="fa-solid fa-check"></i> Sufficient
+                            </span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="empty-state" *ngIf="!isLoading() && filteredItems().length === 0">
+                <p>No items found for the selected period and filters.</p>
+            </div>
+
+            <div class="loading-state" *ngIf="isLoading()">
+                <div class="spinner"></div>
+                <p>Analyzing utilization data...</p>
+            </div>
+        </div>
+    </div>
+</div>

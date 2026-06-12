@@ -522,6 +522,28 @@
         min-width: 0;
 
         .item-name-block {
+
+            /* User note typed when booking the item */
+            .item-note-line {
+                margin-top: 8px;
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                font-size: 0.82rem;
+                font-weight: 600;
+                color: #fcd34d;
+                background: rgba(245, 158, 11, 0.08);
+                border: 1px solid rgba(245, 158, 11, 0.25);
+                border-left: 3px solid #f59e0b;
+                border-radius: 8px;
+                padding: 5px 10px;
+
+                i {
+                    font-size: 0.75rem;
+                    opacity: 0.8;
+                }
+            }
+
             .name-display {
                 margin: 0 0 10px 0;
                 display: flex;
@@ -771,24 +793,44 @@
         }
 
         .tile-actions {
-            .btn-tile-delete {
+            display: flex;
+            gap: 8px;
+
+            .btn-tile-delete,
+            .btn-tile-damage {
                 width: 42px;
                 height: 42px;
-                background: rgba(239, 68, 68, 0.1);
-                border: 1px solid rgba(239, 68, 68, 0.15);
                 border-radius: 12px;
-                color: #f87171;
-                cursor: pointer;
-                transition: all 0.3s;
                 display: flex;
                 align-items: center;
                 justify-content: center;
+                cursor: pointer;
+                transition: all 0.3s;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                background: rgba(255, 255, 255, 0.05);
+            }
+
+            .btn-tile-delete {
+                border-color: rgba(239, 68, 68, 0.15);
+                color: #f87171;
 
                 &:hover {
                     background: #ef4444;
                     color: white;
                     transform: rotate(8deg) scale(1.1);
                     box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+                }
+            }
+
+            .btn-tile-damage {
+                border-color: rgba(245, 158, 11, 0.15);
+                color: #f59e0b;
+
+                &:hover {
+                    background: #f59e0b;
+                    color: #000;
+                    transform: rotate(-8deg) scale(1.1);
+                    box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
                 }
             }
         }
@@ -1361,12 +1403,39 @@
     }
 
     .print-footer {
-        margin-top: 15px;
+        margin-top: 30px;
         border-top: 0.5px solid #ccc;
-        padding-top: 4px;
+        padding-top: 10px;
         font-size: 0.55rem;
         text-align: center;
         color: #777 !important;
+    }
+
+    .print-signatures {
+        margin-top: 50px;
+        display: flex;
+        justify-content: space-between;
+        gap: 40px;
+        page-break-inside: avoid;
+
+        .sig-box {
+            flex: 1;
+            text-align: center;
+            border-top: 1px solid #777;
+            padding-top: 10px;
+            font-size: 0.75rem;
+            color: #333 !important;
+
+            p {
+                margin: 4px 0;
+            }
+
+            .sig-label {
+                font-weight: 700;
+                text-transform: uppercase;
+                margin-top: 4px;
+            }
+        }
     }
 }
 
@@ -1752,4 +1821,40 @@
             }
         }
     }
+}
+/* Booking notes must survive into the printed PDF */
+@media print {
+    .item-note-line {
+        display: inline-flex !important;
+        color: #92400e !important;
+        background: #fef3c7 !important;
+        border: 1px solid #f59e0b !important;
+        border-left: 3px solid #b45309 !important;
+        font-size: 8pt !important;
+        padding: 2px 6px !important;
+        margin-top: 3px !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+}
+
+/* Note line in the printed picklist: its own row under the item name */
+@media print {
+    .print-note-line {
+        display: block !important;
+        margin-top: 2px;
+        padding: 2px 6px;
+        font-size: 8pt !important;
+        font-weight: 700;
+        color: #92400e !important;
+        background: #fef3c7 !important;
+        border-left: 3px solid #b45309 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+}
+
+/* Hidden on screen (the print report block is print-only anyway) */
+.print-note-line {
+    display: none;
 }

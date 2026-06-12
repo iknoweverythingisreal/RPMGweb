@@ -496,6 +496,48 @@
             display: flex;
             align-items: center;
             gap: 8px;
+
+            &.dropdown-period {
+                gap: 8px;
+
+                .period-select {
+                    background: transparent;
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    color: white;
+                    font-size: 1.1rem;
+                    font-weight: 700;
+                    padding: 6px 12px;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    transition: all 0.3s;
+                    appearance: none;
+                    text-align: center;
+
+                    &:hover {
+                        border-color: var(--primary-color);
+                        background: rgba(255, 255, 255, 0.05);
+                    }
+
+                    &:focus {
+                        outline: none;
+                        border-color: var(--primary-light);
+                        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+                    }
+
+                    option {
+                        background: #1e293b;
+                        color: white;
+                    }
+                }
+
+                .month-select {
+                    min-width: 130px;
+                }
+
+                .year-select {
+                    min-width: 90px;
+                }
+            }
         }
 
         .nav-btn {
@@ -549,8 +591,32 @@
             padding: 8px 16px;
 
             @include mobile {
-                padding: 6px 12px;
+                /* Mobile: sit on the first row next to the nav arrows */
+                order: 2;
+                margin-left: auto;
+                padding: 6px 14px;
                 font-size: 0.85rem;
+            }
+        }
+
+        @include mobile {
+            flex-wrap: wrap;
+            row-gap: 8px;
+
+            .nav-controls {
+                order: 1;
+            }
+
+            /* Month/Year selectors drop to their own full-width row */
+            .period-display.dropdown-period {
+                order: 3;
+                width: 100%;
+                gap: 8px;
+
+                .period-select {
+                    flex: 1;
+                    min-width: 0;
+                }
             }
         }
     }
@@ -588,7 +654,39 @@
     }
 }
 
-/* ===== CALENDAR CONTENT ===== */
+/* Event Modal Actions */
+.label-row-with-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+
+    .label-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 0.75rem;
+
+        .btn-text-link {
+            background: transparent;
+            border: none;
+            color: $color-primary-light;
+            cursor: pointer;
+            font-weight: 600;
+            padding: 0;
+
+            &:hover {
+                text-decoration: underline;
+                color: white;
+            }
+        }
+
+        .divider {
+            color: rgba(255, 255, 255, 0.2);
+        }
+    }
+}
+
 .calendar-content {
     flex: 1;
     overflow: auto;
@@ -897,6 +995,27 @@
 
                 &.btn-secondary {
                     @include button-secondary;
+                }
+
+                /* Smart save button: gray while the form is incomplete.
+                   Still clickable so the user gets told exactly what's missing. */
+                &.btn-locked,
+                &:disabled,
+                &[disabled] {
+                    background: #475569 !important;
+                    border-color: #475569 !important;
+                    color: #94a3b8 !important;
+                    cursor: not-allowed;
+                    opacity: 0.7;
+                    box-shadow: none !important;
+                    transform: none !important;
+                    filter: grayscale(0.4);
+
+                    &:hover {
+                        background: #475569 !important;
+                        transform: none !important;
+                        box-shadow: none !important;
+                    }
                 }
             }
         }
@@ -1410,6 +1529,102 @@
                 background: rgba(14, 165, 233, 0.2);
                 padding: 4px 8px;
                 border-radius: 20px;
+            }
+        }
+    }
+}
+
+/* All-day / multi-day event lines on top of week & day views */
+.allday-row {
+    display: flex;
+    background: rgba(17, 25, 40, 0.75);
+    border-bottom: 1px solid $color-border;
+    flex-shrink: 0;
+
+    .allday-label {
+        width: 60px;
+        flex-shrink: 0;
+        border-right: 1px solid $color-border;
+        font-size: 0.58rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: $color-text-muted;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+    }
+
+    .allday-grid {
+        flex: 1;
+        position: relative;
+        min-height: 32px;
+    }
+
+    .allday-list {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 6px;
+    }
+
+    .allday-bar {
+        position: absolute;
+        height: 22px;
+        line-height: 18px;
+        border-radius: 6px;
+        padding: 2px 8px;
+        font-size: 0.72rem;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        cursor: pointer;
+        box-sizing: border-box;
+        border: 2px solid transparent;
+        background-clip: padding-box;
+        transition: filter 0.2s;
+
+        &:hover {
+            filter: brightness(1.15);
+        }
+
+        &:focus-visible {
+            outline: 2px solid $color-primary-light;
+        }
+
+        &.cont-left {
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
+        }
+
+        &.cont-right {
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+        }
+
+        &.static {
+            position: static;
+            height: auto;
+            line-height: 1.3;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 6px 10px;
+            border: none;
+
+            .bar-title {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .bar-dates {
+                font-size: 0.68rem;
+                opacity: 0.85;
+                white-space: nowrap;
             }
         }
     }

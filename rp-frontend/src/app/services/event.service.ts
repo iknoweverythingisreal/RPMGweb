@@ -84,7 +84,8 @@ export interface EventHistoryEntry {
   userId?: number;
   action?: string;
   note?: string;
-  createdAt: string;     // <-- ใช้ createdAt (อย่าใช้ changedAt)
+  createdAt: string;     // บาง endpoint ส่ง createdAt
+  changedAt?: string;    // backend EventHistory จริงๆ serialize เป็น changedAt
   // สำหรับ log แบบเดิม (key-value) เผื่อยังส่งมา:
   changeType?: string;
   data?: Record<string, any>;
@@ -190,11 +191,15 @@ export class EventService {
       // ✅ ต้องเป็น object
       createdBy: { id: req.ownerId },
 
-      // Add manager IDs if provided
-      managers: req.managerIds?.map(id => ({ id })) ?? [],
-
       customFields: req.customFields ?? (req.type ? { type: req.type } : undefined),
     };
+
+    // Only send managers when the caller actually manages them (undefined = leave unchanged).
+    // Backend clears + replaces the list whenever managers is present in the payload.
+    if (req.managerIds) {
+      body.managers = req.managerIds.map(id => ({ id }));
+    }
+
     return this.http.put<CalendarEvent>(`${this.API_EVENTS}/${id}`, body);
   }
 
@@ -224,7 +229,14 @@ export class EventService {
 
   // 🔹 Event History
   getEventHistory(eventId: number) {
-    return this.http.get<EventHistoryEntry[]>(`${environment.apiUrl}/api/event-history/event/${eventId}`);
+    const url = eventId > 0
+      ? `${environment.apiUrl}/api/event-history/event/${eventId}`
+      : `${environment.apiUrl}/api/event-history`; // Global logs if 0 or undefined
+    return this.http.get<EventHistoryEntry[]>(url);
+  }
+
+  getAllHistory() {
+    return this.http.get<EventHistoryEntry[]>(`${environment.apiUrl}/api/event-history`);
   }
 
   requestRentExternal(eventId: number, requesterId: number, itemId: number, qty: number, reason?: string) {
