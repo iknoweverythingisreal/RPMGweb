@@ -1,0 +1,290 @@
+.history-page {
+    padding: 20px;
+    background: #0f172a;
+    min-height: 100vh;
+    color: white;
+
+    .header {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 20px;
+
+        .btn-back {
+            background: none;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+
+            &:hover {
+                background: rgba(255, 255, 255, 0.1);
+            }
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+
+        p {
+            margin: 0;
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+    }
+
+    .history-container {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .combined-card {
+        background: rgba(30, 41, 59, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        padding: 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+
+        .card-left {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+
+            .item-main {
+                display: flex;
+                flex-direction: column;
+
+                .brand-model {
+                    font-size: 0.75rem;
+                    color: #94a3b8;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                    font-weight: 600;
+                }
+
+                .item-name {
+                    margin: 0;
+                    font-size: 1.1rem;
+                    font-weight: 700;
+                    color: #f1f5f9;
+                }
+            }
+
+            .source-breakdown {
+                display: flex;
+                gap: 8px;
+                flex-wrap: wrap;
+
+                .source-badge {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    padding: 4px 10px;
+                    border-radius: 6px;
+                    font-size: 0.8rem;
+                    font-weight: 500;
+
+                    i {
+                        font-size: 0.8rem;
+                    }
+
+                    &.internal {
+                        background: rgba(16, 185, 129, 0.1);
+                        color: #34d399;
+                        border: 1px solid rgba(16, 185, 129, 0.2);
+                    }
+
+                    &.rental {
+                        background: rgba(245, 158, 11, 0.1);
+                        color: #fbbf24;
+                        border: 1px solid rgba(245, 158, 11, 0.2);
+                    }
+                }
+            }
+        }
+
+        .card-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+
+            .total-qty-box {
+                background: rgba(255, 255, 255, 0.05);
+                border-radius: 8px;
+                padding: 8px 16px;
+                text-align: center;
+                min-width: 60px;
+
+                .label {
+                    display: block;
+                    font-size: 0.6rem;
+                    color: #64748b;
+                    text-transform: uppercase;
+                    font-weight: 700;
+                }
+
+                .value {
+                    display: block;
+                    font-size: 1.4rem;
+                    font-weight: 800;
+                    color: white;
+                    line-height: 1;
+                }
+            }
+        }
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 40px;
+        color: #64748b;
+
+        .empty-icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+
+        h2 {
+            color: #cbd5e1;
+            margin-bottom: 5px;
+        }
+
+        button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #3b82f6;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+        }
+    }
+
+    .actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 30px;
+        justify-content: center;
+
+        .btn-export-pdf {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.2s;
+
+            &:hover {
+                background: #059669;
+                transform: translateY(-2px);
+            }
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+
+            &:hover {
+                background: rgba(255, 255, 255, 0.15);
+                color: white;
+            }
+        }
+    }
+}
+
+/* @media print: Optimization for History Export */
+@media print {
+
+    .btn-back,
+    .actions,
+    .btn-secondary,
+    .btn-primary,
+    .loading,
+    .empty-state {
+        display: none !important;
+    }
+
+    .history-page {
+        padding: 0 !important;
+        background: white !important;
+        color: black !important;
+        min-height: auto !important;
+    }
+
+    .header {
+        margin-bottom: 30px !important;
+
+        h1 {
+            color: black !important;
+            font-size: 2rem !important;
+        }
+
+        p {
+            color: #475569 !important;
+            font-weight: 700 !important;
+        }
+    }
+
+    .combined-card {
+        page-break-inside: avoid;
+        break-inside: avoid;
+        background: white !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 0 !important;
+        margin-bottom: 15px !important;
+        color: black !important;
+        padding: 15px !important;
+
+        .card-left {
+            .item-main {
+                .brand-model {
+                    color: #64748b !important;
+                }
+
+                .item-name {
+                    color: black !important;
+                }
+            }
+
+            .source-breakdown .source-badge {
+                border: 1px solid #cbd5e1 !important;
+                background: white !important;
+                color: black !important;
+                padding: 4px 8px !important;
+
+                i {
+                    display: none;
+                }
+            }
+        }
+
+        .card-right .total-qty-box {
+            background: #f8fafc !important;
+            border: 1px solid #e2e8f0 !important;
+
+            .label {
+                color: #64748b !important;
+            }
+
+            .value {
+                color: black !important;
+            }
+        }
+    }
+}

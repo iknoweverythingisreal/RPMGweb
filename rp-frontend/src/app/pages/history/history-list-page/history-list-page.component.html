@@ -1,0 +1,106 @@
+<div class="history-list-page">
+    <!-- Background Shapes -->
+    <div class="bg-shapes">
+        <div class="shape shape-1"></div>
+        <div class="shape shape-2"></div>
+        <div class="shape shape-3"></div>
+    </div>
+
+    <div class="history-container">
+        <!-- Header -->
+        <header class="header-compact">
+            <button class="btn-back-circle" (click)="goBack()" aria-label="Back">←</button>
+            <div class="title-section">
+                <h1 class="marquee-text">Event History</h1>
+                <p>Past Events & Records</p>
+            </div>
+        </header>
+
+        <!-- 1. NAVIGATION TABS -->
+        <div class="history-tabs">
+            <button class="tab-btn" [class.active]="activeTab === 'upcoming'" (click)='setTab("upcoming")'>
+                <i class="fas fa-calendar-alt"></i>
+                <span>Upcoming</span>
+                <span class="badge">{{ upcomingEvents.length }}</span>
+            </button>
+            <button class="tab-btn" [class.active]="activeTab === 'ongoing'" (click)='setTab("ongoing")'>
+                <i class="fas fa-play-circle"></i>
+                <span>Ongoing</span>
+                <span class="badge live">{{ ongoingEvents.length }}</span>
+            </button>
+            <button class="tab-btn" [class.active]="activeTab === 'past'" (click)='setTab("past")'>
+                <i class="fas fa-history"></i>
+                <span>Past</span>
+                <span class="badge">{{ pastEvents.length }}</span>
+            </button>
+        </div>
+
+        <!-- 2. COMPACT SEARCH & FILTER BAR -->
+        <div class="compact-controls-row">
+            <div class="search-input-group">
+                <i class="fas fa-search"></i>
+                <input type="text" placeholder="Search events..." [(ngModel)]="searchQuery" (input)="applyFilters()">
+            </div>
+
+            <!-- Past Tab Specific Filters -->
+            <div class="quick-filters-past" *ngIf="activeTab === 'past'">
+                <select class="filter-dropdown" [(ngModel)]="selectedYear" (change)="onFilterChange()">
+                    <option [ngValue]="null">All Years</option>
+                    <option *ngFor="let year of availableYears" [ngValue]="year">{{ year }}</option>
+                </select>
+
+                <select class="filter-dropdown" [(ngModel)]="selectedMonth" (change)="onFilterChange()">
+                    <option [ngValue]="null">All Months</option>
+                    <option *ngFor="let m of months" [ngValue]="m">{{ m }}</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div class="loading-overlay" *ngIf="isLoading">
+            <div class="spinner"></div>
+            <p>Loading events...</p>
+        </div>
+
+        <!-- Events List -->
+        <div class="events-list" *ngIf="!isLoading">
+            <div class="tab-header-label">
+                <h2>{{ activeTab | uppercase }} ({{ filteredEvents.length }})</h2>
+                <div class="line-decor"></div>
+            </div>
+
+            <div class="event-card-premium" [class.active-event]="activeTab === 'ongoing'"
+                *ngFor="let event of filteredEvents" (click)="viewEventDetail(event.id)">
+                <div class="card-content">
+                    <div class="card-header-row">
+                        <h3 class="event-title">{{ event.title }}</h3>
+                        <span class="event-status-tag" [ngClass]="activeTab">{{ activeTab === 'ongoing' ? 'LIVE' :
+                            formatDate(event.startDate) }}</span>
+                    </div>
+                    <div class="card-info-row">
+                        <span class="info-item">
+                            <i class="fas fa-calendar-day"></i>
+                            {{ formatDate(event.startDate) }}
+                            <span *ngIf="event.endDate && event.endDate !== event.startDate"> — {{
+                                formatDate(event.endDate) }}</span>
+                        </span>
+                        <span class="info-item" *ngIf="event.location">
+                            <i class="fas fa-map-marker-alt"></i>
+                            {{ event.location }}
+                        </span>
+                    </div>
+                </div>
+                <div class="card-arrow">
+                    <i class="fas" [ngClass]="activeTab === 'past' ? 'fa-history' : 'fa-chevron-right'"></i>
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div class="empty-state-premium" *ngIf="filteredEvents.length === 0">
+                <div class="empty-icon">📂</div>
+                <h3>No events found</h3>
+                <p>Try adjusting your search or filters.</p>
+            </div>
+        </div>
+    </div>
+</div>

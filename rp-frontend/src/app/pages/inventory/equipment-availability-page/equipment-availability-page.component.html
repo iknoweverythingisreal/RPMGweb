@@ -1,0 +1,48 @@
+<div class="availability-container" *ngIf="!isLoading">
+  <h2>📦 Equipment Availability</h2>
+  <p class="subtitle">Event: {{ eventTitle || ('Event #' + eventId) }}</p>
+
+  <table class="table table-striped table-hover">
+    <thead>
+      <tr>
+        <th>Item</th>
+        <th>Category</th>
+        <th>UOM</th>
+        <th>Total</th>
+        <th>Allocated</th>
+        <th>Available</th>
+        <th *ngIf="isManager">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let i of items">
+        <td>{{ i.itemName }}</td>
+        <td>{{ i.category }}</td>
+        <td>{{ i.uom }}</td>
+        <td>{{ i.totalQuantity }}</td>
+        <td>{{ i.allocated }}</td>
+        <td>
+          <span [ngClass]="getAvailClass(i.available)">
+            {{ i.available }}
+          </span>
+        </td>
+        <td *ngIf="isManager">
+          <button
+            class="btn btn-primary btn-sm"
+            [disabled]="i.available <= 0"
+            (click)="reserveItem(i)">
+            Reserve
+          </button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div *ngIf="!items.length" class="empty-state">
+    <p>⚠️ No items found for this period.</p>
+  </div>
+</div>
+
+<div *ngIf="isLoading" class="loading">
+  <p>Loading availability data...</p>
+</div>

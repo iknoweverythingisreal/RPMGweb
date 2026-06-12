@@ -1,0 +1,95 @@
+<div class="system-log-container">
+    <header class="page-header">
+        <div class="title-area">
+            <button class="btn-back" (click)="goBack()" aria-label="Back to calendar" title="Back to calendar">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <div class="title-text">
+                <h1><i class="fas fa-terminal"></i> System Audit Log</h1>
+                <p>Track all system events and event modifications</p>
+            </div>
+        </div>
+        <div class="actions">
+            <button class="btn-refresh" (click)="loadLogs()" [disabled]="isLoading">
+                <i class="fas fa-sync-alt" [class.fa-spin]="isLoading"></i> Refresh
+            </button>
+        </div>
+    </header>
+
+    <section class="filters-bar">
+        <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" [(ngModel)]="searchTerm" (ngModelChange)="applyFilter()"
+                placeholder="Search by note, action, or event ID...">
+        </div>
+        <div class="filter-group">
+            <label>Action Type:</label>
+            <select [(ngModel)]="filterType" (change)="applyFilter()">
+                <option value="ALL">All Actions</option>
+                <option value="CREATE_EVENT">Create Event</option>
+                <option value="UPDATE_EVENT">Update Event</option>
+                <option value="DELETE_EVENT">Delete Event</option>
+                <option value="CONFIRM_ITEMS">Confirm Items</option>
+                <option value="PREPARE_ITEMS">Prepare Items</option>
+                <option value="CHECK_ITEMS">Check Items</option>
+            </select>
+        </div>
+    </section>
+
+    <div class="log-table-wrapper">
+        <div class="loading-overlay" *ngIf="isLoading">
+            <div class="spinner"></div>
+            <span>Loading logs...</span>
+        </div>
+
+        <table class="log-table" *ngIf="!isLoading">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>User</th>
+                    <th>Action</th>
+                    <th>Event</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr *ngFor="let log of filteredLogs" [class.has-data]="hasData(log)">
+                    <td class="time-col" data-label="Time">
+                        <span class="date">{{ getLogTime(log) | date:'dd MMM yyyy' }}</span>
+                        <span class="time">{{ getLogTime(log) | date:'HH:mm:ss' }}</span>
+                    </td>
+                    <td class="user-col" data-label="User">
+                        <div class="user-info">
+                            <i class="fas fa-user-circle"></i>
+                            <span>{{ getUserName(log.userId) }}</span>
+                        </div>
+                    </td>
+                    <td class="action-col" data-label="Action">
+                        <span class="action-badge" [style.border-color]="getLogColor(log.action)"
+                            [style.color]="getLogColor(log.action)">
+                            <i class="fas" [ngClass]="getLogIcon(log.action)"></i>
+                            {{ (log.action || log.changeType) }}
+                        </span>
+                    </td>
+                    <td class="event-col" data-label="Event">
+                        <a *ngIf="log.eventId" [href]="'/history/event/' + log.eventId" class="event-link"
+                            [title]="'Event #' + log.eventId">
+                            {{ getEventName(log.eventId) }}
+                        </a>
+                        <span *ngIf="!log.eventId">-</span>
+                    </td>
+                    <td class="note-col" data-label="Details">
+                        <div class="note-content">{{ log.note }}</div>
+                        <pre class="data-preview" *ngIf="hasData(log)">{{ formatData(log.data) }}</pre>
+                    </td>
+                </tr>
+                <tr *ngIf="filteredLogs.length === 0">
+                    <td colspan="5" class="empty-state">
+                        <i class="fas fa-history"></i>
+                        <p>No logs found matching your criteria</p>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

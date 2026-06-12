@@ -1,0 +1,21 @@
+<!-- select-event-page.component.html -->
+<div class="select-event-container">
+  <h2>Select Event to Manage</h2>
+
+  <div *ngIf="isLoading" class="loading">Loading events...</div>
+
+  <div *ngIf="!isLoading && events.length === 0" class="empty">
+    <p>No events available for management.</p>
+  </div>
+
+  <div class="event-list" *ngIf="!isLoading && events.length > 0">
+    <div *ngFor="let ev of events" class="event-card" (click)="openEvent(ev.id!)">
+      <div class="event-info">
+        <h3>{{ ev.title }}</h3>
+        <p>{{ ev.startDate }} - {{ ev.endDate }}</p>
+        <p class="status">Status: {{ ev.status }}</p>
+      </div>
+      <div class="arrow">→</div>
+    </div>
+  </div>
+</div>

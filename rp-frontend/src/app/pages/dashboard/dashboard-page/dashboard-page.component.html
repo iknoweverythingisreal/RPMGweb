@@ -1,0 +1,53 @@
+<div class="dashboard-wrapper" *ngIf="!isLoading && summary">
+
+  <div class="page-header">
+    <h1>📊 Dashboard Overview</h1>
+    <p class="subtitle">System Status & Equipment Lifecycle</p>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="grid-cards">
+
+    <div class="glass-card stat-card">
+      <h3>Total Events</h3>
+      <p class="value">{{ summary.totalEvents }}</p>
+    </div>
+
+    <div class="glass-card stat-card draft">
+      <h3>Draft</h3>
+      <p class="value">{{ summary.draftItems }}</p>
+    </div>
+
+    <div class="glass-card stat-card confirmed">
+      <h3>Confirmed</h3>
+      <p class="value">{{ summary.confirmedItems }}</p>
+    </div>
+
+    <div class="glass-card stat-card ready">
+      <h3>Ready</h3>
+      <p class="value">{{ summary.readyItems }}</p>
+    </div>
+
+    <div class="glass-card stat-card checked">
+      <h3>Checked</h3>
+      <p class="value">{{ summary.checkedItems }}</p>
+    </div>
+
+    <div class="glass-card stat-card rent">
+      <h3>Rent Pending</h3>
+      <p class="value">{{ summary.rentPending }}</p>
+    </div>
+
+  </div>
+
+  <!-- Manual Update -->
+  <div class="action-center glass-card">
+    <button class="btn-primary" (click)="triggerLifecycleUpdate()">
+      🔄 Manual Lifecycle Update
+    </button>
+    <button class="btn-primary admin-btn" *ngIf="userService.isAdmin" (click)="navigateToAdmin()">
+      <i class="fas fa-user-shield"></i> Approve Users
+    </button>
+  </div>
+
+</div>

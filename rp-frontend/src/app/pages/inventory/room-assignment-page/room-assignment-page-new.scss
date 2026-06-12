@@ -1,0 +1,79 @@
+/* 
+  Premium Stylings for Room Manager Hub 
+  Part of the Core Flow Restructuring
+*/
+
+.room-director-hub {
+  .room-cards-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 2rem;
+    padding: 1rem;
+  }
+}
+
+/* Enhancing existing buttons */
+.btn-fill-room {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+
+  &:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
+    filter: brightness(1.1);
+  }
+
+  i {
+    font-size: 0.9rem;
+  }
+}
+
+.btn-select-all {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: 0.2s;
+
+  &:hover {
+    background: rgba(16, 185, 129, 0.2);
+    transform: scale(1.05);
+  }
+}
+
+.stat-actions {
+  margin: 10px 0;
+  display: flex;
+  gap: 10px;
+}
+
+.btn-unassign-all {
+  background: rgba(244, 63, 94, 0.1);
+  color: #f43f5e;
+  border: 1px solid rgba(244, 63, 94, 0.3);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: 0.2s;
+
+  &:hover {
+    background: rgba(244, 63, 94, 0.2);
+    transform: scale(1.05);
+  }
+}

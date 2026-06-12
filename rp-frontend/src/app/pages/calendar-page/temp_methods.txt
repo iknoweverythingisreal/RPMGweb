@@ -1,0 +1,15 @@
+﻿  // Toggle manager selection for multi-user events
+  toggleManagerSelection(userId: number): void {
+    const index = this.selectedManagerIds.indexOf(userId);
+    if (index > -1) {
+      this.selectedManagerIds.splice(index, 1);
+    } else {
+      this.selectedManagerIds.push(userId);
+    }
+  }
+
+  isManagerSelected(userId: number): boolean {
+    return this.selectedManagerIds.includes(userId);
+  }
+
+}

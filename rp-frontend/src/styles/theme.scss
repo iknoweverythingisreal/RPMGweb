@@ -1,0 +1,208 @@
+@use './variable' as *;
+@use './mixins' as *;
+
+/* ======================================
+   THEME — GLOBAL DESIGN TOKENS
+   ====================================== */
+
+/* Global background */
+body {
+  @include gradient-bg;
+  color: $color-text-light;
+  font-family: $font-main;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* --------------------------------------
+   Text & Links
+-------------------------------------- */
+
+/* ถ้า theme ต้องการ accent → สร้างให้ */
+$color-accent: $color-primary-light;
+
+a {
+  color: $color-accent;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+/* --------------------------------------
+   Buttons (global style)
+-------------------------------------- */
+button {
+  @include button-base;
+
+  &.primary {
+    @include button-primary;
+  }
+
+  &.danger {
+    @include btn-danger;
+  }
+
+  &.success {
+    @include btn-success;
+  }
+
+  &.outline {
+    @include btn-outline;
+  }
+}
+
+/* --------------------------------------
+   Inputs
+-------------------------------------- */
+input,
+select,
+textarea {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid $color-border;
+  color: $color-text-light;
+  border-radius: $radius-md;
+  padding: $space-sm $space-md;
+  font-family: inherit;
+  transition: 0.25s;
+
+  &:focus {
+    outline: none;
+    border-color: $color-primary-light;
+    box-shadow: $shadow-glow;
+  }
+}
+
+/* --------------------------------------
+   Cards
+-------------------------------------- */
+.card {
+  @include card;
+}
+
+/* --------------------------------------
+   Text Gradient Utility
+-------------------------------------- */
+.text-gradient {
+  @include text-gradient;
+}
+
+/* ======================================
+   SCROLLBAR
+====================================== */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: $color-primary;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* ======================================
+   LAYOUT UTILITIES
+====================================== */
+.container {
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: $space-lg;
+}
+
+.section {
+  margin-bottom: $space-xl;
+}
+
+.section-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: $space-md;
+  @include text-gradient;
+}
+
+/* ======================================
+   FLEX UTILITIES
+====================================== */
+.flex {
+  display: flex;
+
+  &.center {
+    align-items: center;
+    justify-content: center;
+  }
+
+  &.between {
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  &.col {
+    flex-direction: column;
+  }
+}
+
+/* ======================================
+   GRID UTILITIES
+====================================== */
+.grid {
+  display: grid;
+  gap: $space-md;
+
+  &.cols-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  &.cols-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  &.cols-auto {
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  }
+}
+
+/* ======================================
+   STATES
+====================================== */
+.status {
+  &.ok {
+    color: #34d399;
+  }
+
+  &.warning {
+    color: #facc15;
+  }
+
+  &.error {
+    color: #ef4444;
+  }
+
+  &.info {
+    color: #60a5fa;
+  }
+}
+
+/* ======================================
+   ANIMATION
+====================================== */
+.fade-in {
+  animation: fadeIn 0.4s ease-in-out both;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

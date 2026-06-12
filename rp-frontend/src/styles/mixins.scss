@@ -1,0 +1,254 @@
+@use './variable' as *;
+
+/* ======================================
+   MIXINS — UTIL COMPONENTS
+   ====================================== */
+
+/* --------------------------------------
+   Responsive Breakpoints
+   xs      → ≤ 480px  (small phones)
+   mobile  → ≤ 768px  (phones)
+   tablet  → ≤ 992px  (tablets / landscape)
+   desktop → > 992px  (desktop only)
+-------------------------------------- */
+
+@mixin xs {
+  @media (max-width: #{$bp-xs}) {
+    @content;
+  }
+}
+
+@mixin mobile {
+  @media (max-width: #{$bp-mobile}) {
+    @content;
+  }
+}
+
+@mixin tablet {
+  @media (max-width: #{$bp-tablet}) {
+    @content;
+  }
+}
+
+@mixin tablet-only {
+  @media (min-width: #{$bp-mobile + 1}) and (max-width: #{$bp-tablet}) {
+    @content;
+  }
+}
+
+@mixin desktop {
+  @media (min-width: #{$bp-tablet + 1}) {
+    @content;
+  }
+}
+
+/* --------------------------------------
+   Flex Center
+-------------------------------------- */
+@mixin flex-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* --------------------------------------
+   Center full page
+-------------------------------------- */
+@mixin center-page {
+  min-height: 100vh;
+  width: 100%;
+  @include flex-center;
+  padding: $space-lg;
+}
+
+/* --------------------------------------
+   Glass Card
+-------------------------------------- */
+@mixin glass-card {
+  background: $color-glass-light;
+  border: 1px solid $color-glass-border;
+  backdrop-filter: blur(18px);
+  border-radius: $radius-lg;
+  padding: $space-lg;
+  box-shadow: $shadow-card;
+}
+
+/* --------------------------------------
+   Glass Container (Base effect only)
+-------------------------------------- */
+@mixin glass-container {
+  background: $color-glass-light;
+  border: 1px solid $color-glass-border;
+  backdrop-filter: blur(18px);
+}
+
+/* ======================================================
+   🔥 REQUIRED MIXINS (theme.scss + main.scss เรียกใช้)
+   ====================================================== */
+
+/* Gradient Background (global bg) */
+@mixin gradient-bg {
+  background: linear-gradient(145deg,
+      $color-bg-gradient-start,
+      $color-bg-gradient-end );
+}
+
+/* Card alias → glass-card */
+@mixin card {
+  @include glass-card;
+}
+
+/* Text Gradient */
+@mixin text-gradient {
+  background: linear-gradient(135deg, $color-primary-light, $color-primary);
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+/* --------------------------------------
+   Button Base
+-------------------------------------- */
+@mixin btn-base {
+  padding: 12px 18px;
+  font-size: 0.95rem;
+  border-radius: $radius-md;
+  border: none;
+  cursor: pointer;
+  transition: 0.25s;
+}
+
+/* Button Base (alias for theme.scss) */
+@mixin button-base {
+  @include btn-base;
+}
+
+/* --------------------------------------
+   Buttons
+-------------------------------------- */
+@mixin btn-primary {
+  @include btn-base;
+  background: linear-gradient(135deg, $color-primary, $color-primary-dark);
+  color: #fff;
+
+  &:hover {
+    background: linear-gradient(135deg, $color-primary-dark, $color-primary);
+  }
+}
+
+@mixin button-primary {
+  @include btn-primary;
+}
+
+/* --------------------------------------
+   Button Secondary (missing before)
+-------------------------------------- */
+@mixin button-secondary {
+  @include btn-base;
+  background: rgba(255, 255, 255, 0.08);
+  color: $color-text-light;
+
+
+  border: 1px solid rgba(255, 255, 255, 0.3);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.15);
+  }
+}
+
+@mixin btn-danger {
+  @include btn-base;
+  background: $color-danger;
+  color: #fff;
+
+  &:hover {
+    background: lighten($color-danger, 8%);
+  }
+}
+
+@mixin btn-outline {
+  @include btn-base;
+  background: transparent;
+  border: 1px solid $color-primary-light;
+  color: $color-primary-light;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+}
+
+@mixin btn-success {
+  @include btn-base;
+  background: $color-success;
+  color: #fff;
+}
+
+/* --------------------------------------
+   Form Input
+-------------------------------------- */
+@mixin form-input {
+  width: 100%;
+  padding: 14px;
+  border-radius: $radius-md;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: $color-text-light;
+  transition: 0.25s;
+
+  &:focus {
+    outline: none;
+    border-color: $color-primary-light;
+    box-shadow: $shadow-glow;
+  }
+}
+
+/* --------------------------------------
+   Table
+-------------------------------------- */
+@mixin modern-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th {
+    text-align: left;
+    padding: $space-sm;
+    color: $color-text-muted;
+    font-weight: 600;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  td {
+    padding: $space-sm;
+    color: $color-text-light;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  tr:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+}
+
+
+
+/* --------------------------------------
+   Scrollbar
+-------------------------------------- */
+@mixin scrollbar-thin {
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+  }
+}

@@ -1,0 +1,28 @@
+@use './variable' as *;
+@use './mixins' as *;
+@use './theme';
+@use './utills';
+@import './responsive-tokens'; // ← CSS custom-property token system
+
+@import "../../node_modules/@fortawesome/fontawesome-free/css/all.css";
+
+/* ======================================
+   GLOBAL LAYOUT FIXES
+   ====================================== */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: $font-main;
+  background: linear-gradient(145deg, $color-bg-gradient-start, $color-bg-gradient-end);
+  color: $color-text-light;
+  min-height: 100vh;
+}
+
+/* NOTE: App layout (.app-container, .sidebar, .main-content) is managed
+   by each page component individually (e.g. calendar-page.component.scss).
+   No global layout rules here to avoid conflicts. */

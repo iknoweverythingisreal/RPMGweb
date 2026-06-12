@@ -1,0 +1,493 @@
+<div class="dashboard-container">
+    <header class="dashboard-header">
+        <div class="title-block">
+            <button class="btn-back-glass" onclick="history.back()" aria-label="Back">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <div class="title-wrap">
+                <h1><i class="fas fa-chart-line"></i> Equipment Usage Dashboard</h1>
+                <p>Performance and utilization metrics for event equipment</p>
+            </div>
+        </div>
+    </header>
+
+    <div class="dashboard-tabs">
+        <button [class.active]="activeTab() === 'OVERVIEW'" (click)="activeTab.set('OVERVIEW')">Overview</button>
+        <button [class.active]="activeTab() === 'OVERBOOKED'" (click)="activeTab.set('OVERBOOKED')">Overbooked({{
+            overbookedItems().length }})</button>
+        <button [class.active]="activeTab() === 'TIMELINE'" (click)="activeTab.set('TIMELINE')">Usage Timeline</button>
+        <button [class.active]="activeTab() === 'INVENTORY'" (click)="activeTab.set('INVENTORY')">Inventory
+            Health</button>
+        <button [class.active]="activeTab() === 'MAINTENANCE'" (click)="activeTab.set('MAINTENANCE')">
+            <i class="fas fa-tools"></i> Maintenance
+            <span class="tab-alert-badge" *ngIf="repairItems().length > 0">{{ repairItems().length }}</span>
+        </button>
+    </div>
+
+    <div class="stats-grid" *ngIf="!isLoading() && activeTab() === 'OVERVIEW'">
+        <div class="stat-card">
+            <div class="stat-icon events"><i class="fas fa-calendar-check"></i></div>
+            <div class="stat-info">
+                <span class="label">Total Events Used</span>
+                <span class="value">{{ stats().eventCount }}</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon usage"><i class="fas fa-dolly"></i></div>
+            <div class="stat-info">
+                <span class="label">Equipment Transactions</span>
+                <span class="value">{{ stats().itemUsageCount }}</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon qty"><i class="fas fa-boxes"></i></div>
+            <div class="stat-info">
+                <span class="label">Total Quantity Used</span>
+                <span class="value">{{ stats().totalQuantity }}</span>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="dashboard-content" [class.loading]="isLoading()">
+        <div class="loading-overlay" *ngIf="isLoading()">
+            <div class="spinner"></div>
+            <p>Crunching monthly numbers...</p>
+        </div>
+
+        <div class="overview-grid" *ngIf="!isLoading() && activeTab() === 'OVERVIEW'">
+            <!-- Category Distribution (The "Circle" Summary) -->
+            <section class="chart-section">
+                <div class="section-header">
+                    <h2>Equipment Distribution</h2>
+                    <span class="badge">Category Mix</span>
+                </div>
+                <div class="chart-card">
+                    <div class="pie-container">
+                        <div class="pie-chart" [style.background]="getPieGradient()"></div>
+                        <div class="pie-hole"></div>
+                        <div class="pie-label">
+                            <span class="total">{{ stats().totalQuantity }}</span>
+                            <span class="unit">Total Units</span>
+                        </div>
+                    </div>
+                    <div class="chart-legend">
+                        <div class="legend-item" *ngFor="let cat of categoryDistribution(); let i = index">
+                            <span class="dot" [style.background-color]="getCatColor(i)"></span>
+                            <span class="name">{{ cat.name }}</span>
+                            <span class="percent">{{ cat.percentage | number:'1.0-0' }}%</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- OVERVIEW TAB: Top Items -->
+            <section class="top-items-section">
+                <div class="section-header">
+                    <h2>Top 10 Utilized Items</h2>
+                    <span class="badge">Most Demanded</span>
+                </div>
+                <div class="table-card">
+                    <table class="usage-table">
+                        <thead>
+                            <tr>
+                                <th>Item Name</th>
+                                <th>Occurrences</th>
+                                <th>Total Quantity</th>
+                                <th>Utilization Intensity</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr *ngFor="let item of topItems()">
+                                <td class="item-name-col">
+                                    <strong>{{ item.name }}</strong>
+                                    <span class="sub-desc" *ngIf="item.subName && item.subName !== item.name">{{
+                                        item.subName }}</span>
+                                </td>
+                                <td data-label="Occurrences">{{ item.count }} Events</td>
+                                <td data-label="Total Qty">
+                                    <span class="qty-badge">{{ item.totalQty }} units</span>
+                                </td>
+                                <td data-label="Utilization">
+                                    <div class="progress-wrap">
+                                        <div class="progress-bar-bg">
+                                            <div class="progress-bar"
+                                                [style.width.%]="(item.totalQty / topItems()[0].totalQty) * 100"></div>
+                                        </div>
+                                        <span>{{ ((item.totalQty / topItems()[0].totalQty) * 100) | number:'1.0-0'
+                                            }}%</span>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr *ngIf="topItems().length === 0">
+                                <td colspan="4" class="empty-row">No data recorded for this period</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <!-- TIMELINE TAB: Precise Usage Breakdown -->
+        <section class="timeline-section" *ngIf="!isLoading() && activeTab() === 'TIMELINE'">
+            <div class="glass-header">
+                <div class="title-wrap">
+                    <h2><i class="fas fa-chart-line"></i> Equipment Utilization Timeline</h2>
+                    <p>Granular breakdown of equipment usage intervals and demand</p>
+                </div>
+
+                <div class="header-actions">
+                    <div class="period-selector-glass">
+                        <select [ngModel]="selectedMonth()"
+                            (ngModelChange)="selectedMonth.set(+$event); onPeriodChange()">
+                            <option *ngFor="let m of months" [value]="m.value">{{ m.name }}</option>
+                        </select>
+                        <select [ngModel]="selectedYear()"
+                            (ngModelChange)="selectedYear.set(+$event); onPeriodChange()">
+                            <option *ngFor="let y of availableYears" [value]="y">{{ y }}</option>
+                        </select>
+                        <button (click)="loadData()" [disabled]="isLoading()">
+                            <i class="fas fa-sync" [class.fa-spin]="isLoading()"></i>
+                        </button>
+                    </div>
+
+                    <div class="search-bar-integrated">
+                        <i class="fas fa-search"></i>
+                        <input type="text" [ngModel]="searchTerm()" (ngModelChange)="searchTerm.set($event)"
+                            placeholder="Filter equipment...">
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-card glass-table-container">
+                <table class="health-table">
+                    <thead>
+                        <tr>
+                            <th>Equipment</th>
+                            <th>Active Usage Periods</th>
+                            <th>Current Inventory</th>
+                            <th>Peak Month Load</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr *ngFor="let item of itemTimeline()">
+                            <td class="item-name-cell">
+                                <div class="item-info">
+                                    <strong>{{ item.name }}</strong>
+                                    <span class="sub-desc" *ngIf="item.subName && item.subName !== item.name">{{
+                                        item.subName }}</span>
+                                    <span class="cat-tag">{{ item.category }}</span>
+                                </div>
+                            </td>
+                            <td data-label="Usage Periods">
+                                <div class="mini-timeline-list">
+                                    <div class="timeline-segment usage" *ngFor="let interval of item.intervals">
+                                        <span class="dates">{{ interval.start | date:'dd MMM' }} - {{ interval.end |
+                                            date:'dd MMM' }}&nbsp;</span>
+                                        <span class="demand-val"><b>&nbsp;{{ interval.demand }}</b> units</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="stock-value center" data-label="In Stock">
+                                <span class="val-num">{{ item.totalStock }}</span>
+                            </td>
+                            <td class="booked-value center" data-label="Peak Demand">
+                                <span class="val-num">{{ item.maxDemand }}</span>
+                            </td>
+                        </tr>
+                        <tr *ngIf="itemTimeline().length === 0">
+                            <td colspan="4" class="empty-row">No active usage recorded for this period</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- OVERBOOKED TAB: Premium Aero-Glass Table View with Timeline -->
+        <section class="overbooked-section" *ngIf="!isLoading() && activeTab() === 'OVERBOOKED'">
+            <div class="glass-header">
+                <div class="title-wrap">
+                    <h2><i class="fas fa-triangle-exclamation"></i> Critical Shortage Timeline</h2>
+                    <p>Precise dates where demand exceeds total stock capacity</p>
+                </div>
+
+                <div class="header-actions">
+                    <div class="period-selector-glass">
+                        <select [ngModel]="selectedMonth()"
+                            (ngModelChange)="selectedMonth.set(+$event); onPeriodChange()">
+                            <option *ngFor="let m of months" [value]="m.value">{{ m.name }}</option>
+                        </select>
+                        <select [ngModel]="selectedYear()"
+                            (ngModelChange)="selectedYear.set(+$event); onPeriodChange()">
+                            <option *ngFor="let y of availableYears" [value]="y">{{ y }}</option>
+                        </select>
+                        <button (click)="loadData()" [disabled]="isLoading()">
+                            <i class="fas fa-sync" [class.fa-spin]="isLoading()"></i>
+                        </button>
+                    </div>
+
+                    <div class="search-bar-integrated">
+                        <i class="fas fa-search"></i>
+                        <input type="text" [ngModel]="searchTerm()" (ngModelChange)="searchTerm.set($event)"
+                            placeholder="Filter equipment...">
+                    </div>
+
+                    <div class="stats-mini-row">
+                        <div class="mini-stat">
+                            <span class="label">Total Major Shortages</span>
+                            <span class="value">{{ overbookedItems().length }} Items</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-card glass-table-container">
+                <table class="health-table overbook-table">
+                    <thead>
+                        <tr>
+                            <th>Equipment</th>
+                            <th>Shortage Periods</th>
+                            <th>Warehouse Stock</th>
+                            <th>Peak Monthly Demand</th>
+                            <th>Operational Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr *ngFor="let item of overbookedItems()" class="critical-row">
+                            <td class="item-name-cell">
+                                <div class="item-info">
+                                    <strong>{{ item.name }}</strong>
+                                    <span class="sub-desc" *ngIf="item.subName && item.subName !== item.name">{{
+                                        item.subName }}</span>
+                                    <span class="cat-tag">{{ item.category }}</span>
+                                </div>
+                            </td>
+                            <td data-label="Shortage Periods">
+                                <div class="shortage-timeline-list">
+                                    <ng-container *ngFor="let interval of item.intervals">
+                                        <div class="timeline-segment shortage" *ngIf="interval.isOverbooked">
+                                            <div class="period-dates">
+                                                <i class="far fa-clock"></i>
+                                                {{ interval.start | date:'dd MMM' }} - {{ interval.end | date:'dd MMM'
+                                                }}
+                                            </div>
+                                            <div class="shortage-badge-premium mini">
+                                                <span class="sign">-</span>
+                                                <span class="count">{{ interval.shortage }}</span>
+                                                <span class="unit">short</span>
+                                            </div>
+                                        </div>
+                                    </ng-container>
+                                </div>
+                            </td>
+                            <td class="stock-value center" data-label="Warehouse Stock">
+                                <span class="val-num">{{ item.totalStock }}</span>
+                            </td>
+                            <td class="booked-value center" data-label="Peak Demand">
+                                <span class="val-num highlight">{{ item.maxDemand }}</span>
+                            </td>
+                            <td>
+                                <div class="action-recommendation">
+                                    <i class="fas fa-truck-loading"></i>
+                                    <span>External Rental Required</span>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr *ngIf="overbookedItems().length === 0">
+                            <td colspan="5" class="empty-state-centered">
+                                <div class="success-msg-glass">
+                                    <i class="fas fa-check-circle"></i>
+                                    <p>Warehouse stock levels satisfy all requirements for this month.</p>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+
+        <!-- INVENTORY HEALTH TAB -->
+        <section class="health-section" *ngIf="!isLoading() && activeTab() === 'INVENTORY'">
+            <div class="glass-header">
+                <div class="title-wrap">
+                    <h2><i class="fas fa-chart-line"></i> Equipment Booked</h2>
+                </div>
+                <div class="header-actions">
+                    <div class="period-selector-glass">
+                        <select [ngModel]="selectedMonth()"
+                            (ngModelChange)="selectedMonth.set(+$event); onPeriodChange()">
+                            <option *ngFor="let m of months" [value]="m.value">{{ m.name }}</option>
+                        </select>
+                        <select [ngModel]="selectedYear()"
+                            (ngModelChange)="selectedYear.set(+$event); onPeriodChange()">
+                            <option *ngFor="let y of availableYears" [value]="y">{{ y }}</option>
+                        </select>
+                        <button (click)="loadData()" [disabled]="isLoading()">
+                            <i class="fas fa-sync" [class.fa-spin]="isLoading()"></i>
+                        </button>
+                    </div>
+                    <div class="search-bar-integrated">
+                        <i class="fas fa-search"></i>
+                        <input type="text" [ngModel]="searchTerm()" (ngModelChange)="searchTerm.set($event)"
+                            placeholder="Filter equipment...">
+                    </div>
+                </div>
+            </div>
+            <div class="table-card">
+                <table class="health-table">
+                    <thead>
+                        <tr>
+                            <th>Item Name</th>
+                            <th>Total Stock</th>
+                            <th>Booked (Month)</th>
+                            <th>Remaining (Avg)</th>
+                            <th>Utilization</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr *ngFor="let h of inventoryHealth()" [class.warning]="h.utilization > 80"
+                            [class.critical]="h.remaining <= 0">
+                            <td class="item-name-cell">
+                                <strong>{{ h.name }}</strong>
+                                <span class="sub-desc" *ngIf="h.subName && h.subName !== h.name">{{ h.subName }}</span>
+                                <span class="cat-tag">{{ h.category }}</span>
+                            </td>
+                            <td class="stock-value" data-label="Total Stock">{{ h.totalStock }}</td>
+                            <td class="booked-value" data-label="Booked (Month)">{{ h.currentlyBooked }}</td>
+                            <td data-label="Remaining">
+                                <span class="remaining-badge" [class.shortage]="h.remaining <= 0">
+                                    <i class="fas" [class.fa-check-circle]="h.remaining > 0"
+                                        [class.fa-exclamation-triangle]="h.remaining <= 0"></i>
+                                    {{ h.remaining }} left
+                                </span>
+                            </td>
+                            <td class="util-cell" data-label="Utilization">
+                                <div class="health-progress-wrap">
+                                    <div class="health-bg">
+                                        <div class="health-bar" [class.high]="h.utilization > 80"
+                                            [style.width.%]="h.utilization"></div>
+                                    </div>
+                                    <span>{{ h.utilization | number:'1.0-0' }}%</span>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- MAINTENANCE TAB -->
+        <section class="maintenance-section" *ngIf="!isLoading() && activeTab() === 'MAINTENANCE'">
+            <div class="section-header">
+                <h2>Equipment Maintenance & Repairs</h2>
+                <p>Track broken items and return them to service</p>
+            </div>
+
+            <div class="repair-alert" *ngIf="repairItems().length > 0">
+                <i class="fas fa-bell"></i>
+                <div class="alert-text">
+                    <strong>{{ repairItems().length }} item(s) need attention</strong>
+                    <span>{{ totalRepairUnits() }} units are out of service and deducted from available stock</span>
+                </div>
+            </div>
+
+            <div class="table-card">
+                <table class="maintenance-table">
+                    <thead>
+                        <tr>
+                            <th>Equipment Name</th>
+                            <th>Status / Issue</th>
+                            <th>Quantity Down</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr *ngFor="let item of repairItems()">
+                            <td class="item-name-cell">
+                                <div class="item-info-wrap">
+                                    <div class="item-pic" *ngIf="item.imageUrl"
+                                        [style.background-image]="'url(' + item.imageUrl + ')'"></div>
+                                    <div class="text-data">
+                                        <strong>{{ getItemDisplayName(item) }}</strong>
+                                        <span class="sub-desc" *ngIf="item.name && getItemDisplayName(item) !== item.name">{{
+                                            item.name }}</span>
+                                        <span class="cat-tag">{{ item.category }}</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td data-label="Status">
+                                <span class="status-badge" [class.repair]="item.spec?.repair_qty > 0"
+                                    [class.damaged]="item.status === 'DAMAGED' || item.status === 'BROKEN'">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    {{ item.status === 'UNDER_REPAIR' || item.spec?.repair_qty > 0 ? 'Under Repair' :
+                                    item.status }}
+                                </span>
+                            </td>
+                            <td class="qty-down" data-label="Qty Down">
+                                <strong>{{ item.spec?.repair_qty || 1 }}</strong> units
+                            </td>
+                            <td>
+                                <button class="btn-action fix" *ngIf="canManageRepairs" (click)="openResolveModal(item)"
+                                    title="Decide: repair or write off">
+                                    <i class="fas fa-clipboard-check"></i> Resolve
+                                </button>
+                                <span class="role-lock" *ngIf="!canManageRepairs">
+                                    <i class="fas fa-lock"></i> Tech Lead / Admin only
+                                </span>
+                            </td>
+                        </tr>
+                        <tr *ngIf="repairItems().length === 0">
+                            <td colspan="4" class="empty-state">
+                                <div class="empty-msg">
+                                    <i class="fas fa-check-double"></i>
+                                    <p>All equipment is currently in good standing. No repairs pending.</p>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <!-- Resolve Repair Modal (Tech Lead / Admin) -->
+    <div class="modal-overlay" *ngIf="resolveItem()" (click)="closeResolveModal()">
+        <div class="resolve-modal" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+                <h2><i class="fas fa-tools"></i> Resolve Repair</h2>
+                <button class="close-btn" (click)="closeResolveModal()">×</button>
+            </div>
+
+            <div class="modal-body">
+                <div class="resolve-item-summary">
+                    <strong>{{ getItemDisplayName(resolveItem()) }}</strong>
+                    <span class="cat-tag">{{ resolveItem()?.category }}</span>
+                    <div class="repair-count">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        {{ maxResolveQty() }} unit(s) currently down
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Quantity to resolve</label>
+                    <input type="number" [ngModel]="resolveQty()" (ngModelChange)="resolveQty.set(+$event)" min="1"
+                        [max]="maxResolveQty()" inputmode="numeric">
+                </div>
+
+                <div class="resolve-choices">
+                    <button class="choice repaired" (click)="confirmRepaired()">
+                        <i class="fas fa-check-circle"></i>
+                        <span class="title">Repaired</span>
+                        <span class="desc">Units return to usable stock</span>
+                    </button>
+                    <button class="choice writeoff" (click)="confirmWriteOff()">
+                        <i class="fas fa-trash-alt"></i>
+                        <span class="title">Beyond Repair</span>
+                        <span class="desc">Permanently removed from total stock</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

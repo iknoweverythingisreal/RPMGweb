@@ -1,0 +1,112 @@
+<div class="virtual-storage-page">
+
+  <!-- ======== Header ======== -->
+  <div class="page-header glass-card">
+    <h2>Virtual Storage</h2>
+    <p>Realtime availability summary for all equipment.</p>
+  </div>
+
+  <!-- ======== Main Table ======== -->
+  <div class="glass-card mt-3">
+    <table class="modern-table">
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Category</th>
+          <th>Total</th>
+          <th>Allocated</th>
+          <th>Available</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        <tr *ngFor="let item of items()" (click)="loadItemAvailability(item.itemId)" class="row-click">
+          <td>{{ item.itemName }}</td>
+          <td>{{ item.category }}</td>
+          <td>{{ item.totalQuantity }}</td>
+          <td>{{ item.allocated }}</td>
+          <td>{{ item.available }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ======== Unified Availability Details ======== -->
+  <div *ngIf="selectedAvailability" class="glass-card mt-4 detail-section">
+
+    <h3>{{ selectedAvailability.itemName }} — Details</h3>
+
+    <!-- SUMMARY -->
+    <div class="summary-grid">
+      <div><b>Total:</b> {{ selectedAvailability.total }}</div>
+      <div><b>Allocated:</b> {{ selectedAvailability.allocated }}</div>
+      <div><b>Available:</b> {{ selectedAvailability.available }}</div>
+
+      <div *ngIf="selectedAvailability.shortage && selectedAvailability.shortage > 0" class="text-danger">
+        <b>Shortage:</b> {{ selectedAvailability.shortage }}
+      </div>
+    </div>
+
+    <hr />
+
+    <!-- SERIAL MODE VIEW -->
+    <div *ngIf="selectedAvailability.serialMode">
+
+      <h4>Serial Numbers</h4>
+
+      <table class="modern-table serial-table">
+        <thead>
+          <tr>
+            <th>Select</th>
+            <th>Serial</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr *ngFor="let s of selectedAvailability.serials">
+            <td>
+              <input type="checkbox" [disabled]="s.status !== 'AVAILABLE'"
+                (change)="toggleSerialSelection(s.itemUnitId, $any($event.target).checked)" />
+            </td>
+
+            <td>{{ s.serial }}</td>
+
+            <td>
+              <span class="status-pill" [ngClass]="{
+                      'available': s.status === 'AVAILABLE',
+                      'in-use': s.status === 'IN_USE',
+                      'unavailable': s.status === 'UNAVAILABLE'
+                    }">
+                {{ s.status }}
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <button class="primary-btn mt-2" (click)="submitSerials()" [disabled]="selectedSerials.length === 0">
+        Add Selected Serials to Event
+      </button>
+
+    </div>
+
+    <!-- QUANTITY MODE VIEW -->
+    <div *ngIf="!selectedAvailability.serialMode">
+
+      <h4>Quantity Breakdown</h4>
+
+      <div class="qty-grid">
+        <div><b>Total:</b> {{ selectedAvailability.qty?.total }}</div>
+        <div><b>Allocated:</b> {{ selectedAvailability.qty?.allocated }}</div>
+        <div><b>Available:</b> {{ selectedAvailability.qty?.available }}</div>
+
+        <div *ngIf="(selectedAvailability.qty?.shortage ?? 0) > 0" class="text-danger">
+          <b>Shortage:</b> {{ selectedAvailability.qty?.shortage }}
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</div>

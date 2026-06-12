@@ -1,0 +1,215 @@
+<div class="login-page">
+
+  <!-- Background Elements -->
+  <div class="bg-shapes">
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
+    <div class="shape shape-3"></div>
+  </div>
+
+  <div class="login-wrapper">
+    <div class="login-container">
+
+      <!-- Header -->
+      <div class="header">
+        <div class="logo-container">
+          <div class="logo-icon">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99
+                2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5
+                c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
+            </svg>
+          </div>
+          <div class="logo-text">
+            <h1>RP Media</h1>
+            <p>Event Equipment Booking System</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Navigation -->
+      <div class="tab-navigation">
+        <div class="tab-slider" [class.register]="!isLoginMode"></div>
+
+        <button class="tab-btn" [class.active]="isLoginMode" (click)="isLoginMode = true; resetForms()">
+          Login
+        </button>
+
+        <button class="tab-btn" [class.active]="!isLoginMode" (click)="toggleMode()">
+          Register
+        </button>
+      </div>
+
+      <!-- Form Wrapper -->
+      <div class="form-wrapper">
+
+        <!-- LOGIN FORM -->
+        <div class="form-container" [class.active]="isLoginMode" *ngIf="isLoginMode">
+
+          <div class="form-header">
+            <h2>Welcome Back</h2>
+            <p>Sign in to access your account</p>
+          </div>
+
+          <form (ngSubmit)="login()" class="auth-form">
+
+            <!-- EMAIL -->
+            <div class="input-group">
+              <div class="input-container">
+                <input type="email" [(ngModel)]="loginData.email" name="email" placeholder=" "
+                       class="form-input" id="login-email" required>
+                <label for="login-email" class="form-label">Email Address</label>
+
+                <!-- SAFE EMAIL ICON -->
+                <div class="input-icon">
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 13L2 6.76V18h20V6.76L12 13zM12 11L22 4H2l10 7z"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <!-- PASSWORD -->
+            <div class="input-group">
+              <div class="input-container">
+                <input type="password" [(ngModel)]="loginData.password" name="password" placeholder=" "
+                       class="form-input" id="login-password" required>
+                <label for="login-password" class="form-label">Password</label>
+
+                <!-- SAFE LOCK ICON -->
+                <div class="input-icon">
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 17a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm6-7h-1V7a5 5 0 0
+                        0-10 0v3H6a2 2 0 0 0-2 2v9a2 2
+                        0 0 0 2 2h12a2 2 0 0 0 2-2v-9a2
+                        2 0 0 0-2-2zm-3 0H9V7a3 3 0 0 1 6 0v3z"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <!-- BUTTON -->
+            <button type="submit" class="btn-primary" [disabled]="isLoading">
+              <span *ngIf="!isLoading">Sign In</span>
+              <span class="loading" *ngIf="isLoading">
+                <div class="spinner"></div> Signing in...
+              </span>
+            </button>
+
+          </form>
+        </div>
+
+        <!-- REGISTER FORM -->
+        <div class="form-container" [class.active]="!isLoginMode" *ngIf="!isLoginMode">
+
+          <div class="form-header">
+            <h2>Create Account</h2>
+            <p>Join us to get started</p>
+          </div>
+
+          <form (ngSubmit)="register()" class="auth-form">
+
+            <!-- NAME -->
+            <div class="input-group">
+              <div class="input-container">
+                <input type="text" [(ngModel)]="registerData.name" name="name" placeholder=" "
+                       class="form-input" id="register-name" required>
+                <label class="form-label" for="register-name">Full Name</label>
+
+                <!-- SAFE USER ICON -->
+                <div class="input-icon">
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5
+                        2.3-5 5 2.3 5 5 5zm0
+                        2c-3.3 0-10 1.7-10 5v3h20v-3c0-3.3-6.7-5-10-5z"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <!-- EMAIL -->
+            <div class="input-group">
+              <div class="input-container">
+                <input type="email" [(ngModel)]="registerData.email" name="email" placeholder=" "
+                       class="form-input" id="register-email" required>
+                <label for="register-email" class="form-label">Email Address</label>
+
+                <div class="input-icon">
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 13L2 6.76V18h20V6.76L12 13zM12 11L22 4H2l10 7z"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <!-- PASSWORD -->
+            <div class="input-group">
+              <div class="input-container">
+                <input type="password" [(ngModel)]="registerData.password" name="password" placeholder=" "
+                       class="form-input" id="register-password" required>
+                <label class="form-label" for="register-password">Password</label>
+
+                <div class="input-icon">
+                  <svg viewBox="0 0 24 24">
+                    <path fill="currentColor"
+                      d="M12 17a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm6-7h-1V7a5
+                      5 0 0 0-10 0v3H6a2 2 0 0 0-2
+                      2v9a2 2 0 0 0 2 2h12a2 2 0 0
+                      0 2-2v-9a2 2 0 0 0-2-2z"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <!-- CONFIRM PASSWORD -->
+            <div class="input-group">
+              <div class="input-container">
+                <input type="password" [(ngModel)]="registerData.confirmPassword" name="confirmPassword"
+                       placeholder=" " class="form-input" id="register-confirm" required>
+                <label class="form-label" for="register-confirm">Confirm Password</label>
+
+                <div class="input-icon">
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M9 16l-4-4 1.41-1.41L9 13.17l8.59-8.59L19
+                      6l-10 10z"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" class="btn-primary" [disabled]="isLoading">
+              <span *ngIf="!isLoading">Create Account</span>
+              <span class="loading" *ngIf="isLoading">
+                <div class="spinner"></div> Creating...
+              </span>
+            </button>
+
+          </form>
+        </div>
+      </div>
+
+      <!-- Messages -->
+      <div class="message-container" *ngIf="errorMessage || successMessage">
+
+        <div class="message error" *ngIf="errorMessage">
+          <svg class="message-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M11 15h2v2h-2zm0-8h2v6h-2zm1-5C6.48 2
+              2 6.48 2 12s4.48 10 10 10 10-4.48
+              10-10S17.52 2 12 2z"/>
+          </svg>
+          {{ errorMessage }}
+        </div>
+
+        <div class="message success" *ngIf="successMessage">
+          <svg class="message-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M9 16l-4-4 1.41-1.41L9
+              13.17l8.59-8.59L19 6l-10 10z"/>
+          </svg>
+          {{ successMessage }}
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+</div>

@@ -1,0 +1,188 @@
+<div class="page-container">
+    <div class="bg-shapes">
+        <div class="shape shape-1"></div>
+        <div class="shape shape-2"></div>
+        <div class="shape shape-3"></div>
+    </div>
+
+    <!-- Header v3 -->
+    <header class="page-header">
+        <div class="header-left">
+            <button class="btn-return" (click)="goBack()">
+                <i class="fa fa-chevron-left"></i>
+            </button>
+            <div class="title-section">
+                <h1>{{ eventName() }}</h1>
+                <p>Room Director</p>
+            </div>
+        </div>
+
+        <!-- <div class="header-center">
+            <div class="progress-wrap">
+                <div class="progress-label">
+                    <span>ALLOCATION PROGRESS</span>
+                    <span class="pct">{{ getProgressPercentage() }}%</span>
+                </div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar-fill" [style.width.%]="getProgressPercentage()"></div>
+                </div>
+            </div>
+        </div> -->
+
+        <div class="header-right">
+            <button class="btn-summary-header" (click)="goToEventSummary()">
+                EVENT SUMMARY <i class="fa-solid fa-file-invoice"></i>
+            </button>
+            <button *ngIf="isManager" class="btn-finish-header" (click)="finalizeBooking()">
+                FINALIZE & BOOK <i class="fa-solid fa-circle-check"></i>
+            </button>
+            <button *ngIf="isManager" class="btn-add-room" (click)="addRoom()">
+                <i class="fa-solid fa-plus"></i> CREATE ROOM
+            </button>
+        </div>
+    </header>
+
+    <!-- Unified Room Workspace -->
+    <div class="workspace-unified">
+
+        <!-- PENDING / UNASSIGNED SECTION (Only if exists) -->
+        <section class="room-card pending-card shadow-premium" *ngIf="getUnassignedItems().length > 0">
+            <div class="room-header pending">
+                <div class="room-state-indicator">
+                    <div class="pulse-dot"></div>
+                    <span>UNASSIGNED ITEMS ({{ getUnassignedItems().length }})</span>
+                </div>
+                <div class="room-actions">
+                    <button class="btn-clean-pool" *ngIf="isManager" (click)="deleteAllUnassigned()">
+                        <i class="fa-solid fa-trash-can"></i> RETURN ALL TO CART
+                    </button>
+                </div>
+            </div>
+            <div class="room-body">
+                <p class="section-hint">These items were added but haven't been assigned to a room yet.</p>
+                <div class="room-item-list">
+                    <div class="room-item-row pending-item" *ngFor="let item of getUnassignedItems()">
+                        <div class="item-visual-col">
+                            <div class="cat-pill">{{ getCategoryIcon(item.categoryName) }}</div>
+                        </div>
+                        <div class="item-detail-col">
+                            <div class="item-identity">
+                                <span class="name">{{ getTitle(item) }}</span>
+                                <span class="row-type-label" *ngIf="isNote(item)">HANDOVER NOTE</span>
+                                <span class="row-type-label is-rental"
+                                    *ngIf="isExternal(item) && !isNote(item)">EXTERNAL</span>
+                            </div>
+                            <div class="item-status-meta">
+                                <span class="main-qty-badge">{{ item.requestedQuantity }}x</span>
+                            </div>
+                        </div>
+                        <div class="item-action-col">
+                            <select class="room-select-mini" (change)="moveToRoom(item, $any($event.target).value)">
+                                <option value="">Assign to Room...</option>
+                                <option *ngFor="let r of rooms()" [value]="r">{{ r }}</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ACTIVE ROOMS LIST -->
+        <div class="rooms-stack">
+            <section class="room-card glass-card" *ngFor="let room of rooms()"
+                [class.has-items]="getItemsInRoom(room).length > 0">
+                <div class="room-header">
+                    <div class="room-title-info">
+                        <h3>{{ room }}</h3>
+                        <span class="item-count">{{ getItemsInRoom(room).length }} Items</span>
+                    </div>
+                    <div class="room-actions v2">
+                        <button class="btn-action-pill fill" (click)="goToInventory(room)">
+                            <i class="fa-solid fa-cart-plus"></i> ADD
+                        </button>
+                        <button class="btn-action-pill unassign" *ngIf="getItemsInRoom(room).length > 0"
+                            (click)="unassignAllFromRoom(room)">
+                            <i class="fa-solid fa-reply-all"></i> CLEAR
+                        </button>
+                        <button *ngIf="isManager" class="btn-icon-danger" (click)="deleteRoom(room)">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="room-body">
+                    <div class="room-item-list" *ngIf="getItemsInRoom(room).length > 0">
+                        <div class="room-item-row" *ngFor="let item of getItemsInRoom(room)"
+                            [class.stock-row]="item.isStockOnly && !isNote(item)"
+                            [class.rental-row]="item.isRentalOnly && !isNote(item)"
+                            [class.shortage-row]="item.isShortage && !isNote(item)" [class.note-row]="isNote(item)">
+
+                            <div class="item-main-content">
+                                <div class="item-identity-v2">
+                                    <div class="name-row">
+                                        <span class="name">{{ getTitle(item) }}</span>
+                                        <span class="qty-bubble">{{ item.requestedQuantity }}x</span>
+                                    </div>
+                                    <p class="description-small" *ngIf="getDescription(item)">{{ getDescription(item) }}
+                                    </p>
+
+                                    <div class="meta-pills">
+                                        <span class="type-pill" *ngIf="!isExternal(item) && !isNote(item)"
+                                            [class.stock]="item.isStockOnly" [class.rental]="item.isRentalOnly"
+                                            [class.shortage]="item.isShortage">
+                                            {{ item.isStockOnly ? 'STOCK' : (item.isShortage ? 'PARTIAL RENTAL' :
+                                            'RENTAL') }}
+                                        </span>
+                                        <span class="type-pill rental"
+                                            *ngIf="isExternal(item) && !isNote(item)">EXTERNAL</span>
+                                        <span class="type-pill note" *ngIf="isNote(item)">NOTE</span>
+                                        <span class="room-label" (click)="editRemark(item)" *ngIf="!isNote(item)">
+                                            <i class="fa-solid fa-pen"></i> edit
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div class="item-controls-v2">
+                                    <select class="room-move-select"
+                                        (change)="moveToRoom(item, $any($event.target).value)">
+                                        <option value="">Move to...</option>
+                                        <option *ngFor="let r of rooms()" [value]="r" [hidden]="r === room">{{ r }}
+                                        </option>
+                                        <option value="Unassigned">Unassign</option>
+                                    </select>
+                                    <button class="btn-remove-v2" *ngIf="isManager" (click)="returnToCart(item)"
+                                        title="Delete from event">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="room-empty-v2" *ngIf="getItemsInRoom(room).length === 0" (click)="goToInventory(room)">
+                        <i class="fa-solid fa-plus-circle"></i>
+                        <p>This room is empty. Click to add equipment.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- DESIGN FIRST ROOM FALLBACK -->
+            <div class="empty-state-v2" *ngIf="rooms().length === 0">
+                <div class="visual">
+                    <i class="fa-solid fa-layer-group"></i>
+                </div>
+                <h3>No Rooms Defined</h3>
+                <p>Create your first room to start organizing equipment.</p>
+                <button class="btn-primary-v2" (click)="addRoom()">
+                    <i class="fa-solid fa-plus"></i> CREATE ROOM
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="sync-overlay" *ngIf="isLoading()">
+        <div class="pulse-loader"></div>
+        <div class="sync-text">SYNCING STUDIO...</div>
+    </div>
+
+</div>

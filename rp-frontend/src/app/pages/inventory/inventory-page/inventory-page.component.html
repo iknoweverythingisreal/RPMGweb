@@ -1,0 +1,407 @@
+<div class="inventory-page">
+  <!-- Background Shapes -->
+  <div class="bg-shapes">
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
+    <div class="shape shape-3"></div>
+  </div>
+
+  <!-- Main Container -->
+  <div class="inventory-container">
+    <!-- Past Event Warning Banner -->
+    <div *ngIf="isPastEvent()" class="past-event-banner">
+      <span class="icon">⚠️</span>
+      <div class="banner-text">
+        <strong>Event นี้จบไปแล้ว (Past Event)</strong>
+        <span>คุณกำลังอยู่ในโหมดอ่านอย่างเดียว</span>
+      </div>
+    </div>
+
+    <!-- Header (Compact) -->
+    <div class="header-compact">
+      <button class="btn-back-circle" (click)="goBack()" aria-label="Back">
+        <i class="fa fa-chevron-left"></i>
+      </button>
+      <div class="title-section">
+        <h1 class="marquee-text">{{ eventName() }}</h1>
+        <div class="active-room-indicator" *ngIf="activeRoom()">
+          <i class="fa-solid fa-layer-group"></i>
+          <span>Filling Room: <strong>{{ activeRoom() }}</strong></span>
+          <button class="btn-change-room" (click)="goBack()" title="Change Room">
+            <i class="fa-solid fa-rotate"></i>
+          </button>
+        </div>
+        <p *ngIf="!activeRoom()">Inventory Management</p>
+      </div>
+
+      <div class="header-actions">
+        <button class="btn-action btn-calendar" (click)="goToCalendar()">
+          <i class="fas fa-calendar-alt"></i>
+          <span>Calendar</span>
+        </button>
+        <button *ngIf="(isAdmin || isManager) && !isCatalogMode" class="btn-action btn-rental"
+          (click)="openRentalModal()" [disabled]="isPastEvent()">
+          <span>Rental</span>
+        </button>
+        <button *ngIf="(isAdmin || isTech) && (isCatalogMode || !userService.isTechLead)" class="btn-action btn-new"
+          (click)="openCreateModal()">
+          <span>+ Item</span>
+        </button>
+        <button *ngIf="(isAdmin || isManager) && !isCatalogMode" class="btn-action btn-cart" (click)="goToCart()"
+          [attr.data-count]="cartCount">
+          <i class="fas fa-shopping-cart"></i>
+          <span>Review Cart ({{ cartCount }})</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Search & Filters (Compact) -->
+    <div class="controls-compact">
+      <div class="search-box">
+        <input type="text" placeholder="Search equipment..." (input)="onSearchChange($any($event.target).value)" />
+      </div>
+
+      <div class="filter-row">
+        <div class="select-wrapper">
+          <select (change)="selectCategory($any($event.target).value)">
+            <option value="all">All Categories</option>
+            <option *ngFor="let c of categories" [value]="c.id">{{ c.name[currentLang()] }}</option>
+          </select>
+        </div>
+
+        <!-- <div class="select-wrapper">
+          <select (change)="onLocationChange($any($event.target).value)">
+            <option *ngFor="let loc of locations" [value]="loc.value">{{ loc.label[currentLang()] }}</option>
+          </select>
+        </div> -->
+
+        <button class="btn-lang-toggle" (click)="toggleLanguage()">
+          {{ currentLang() | uppercase }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Items Grid (Compact 3-Column) -->
+    <div class="items-grid compact-3-col">
+      <div class="compact-card" *ngFor="let item of filteredItems()" [class.overbooked-card]="isOverbooked(item)"
+        [class.external-card]="isExternal(item)">
+
+        <!-- Top: Image & Status -->
+        <div class="card-thumb" [class.no-image]="!item.imageUrl">
+          <img *ngIf="item.imageUrl" [src]="item.imageUrl" [alt]="item.name" />
+
+          <!-- Fallback Placeholder -->
+          <div class="image-fallback" *ngIf="!item.imageUrl" [attr.data-category]="item.category">
+            <span class="category-icon">{{ getCategoryIcon(item.category) }}</span>
+            <span class="category-label">{{ getCategoryName(item.category) }}</span>
+          </div>
+
+          <span class="status-dot" [style.background]="getStatusColor(item)"></span>
+          <div class="overbooked-overlay" *ngIf="isOverbooked(item)">
+            <span>OVERBOOKED</span>
+          </div>
+        </div>
+
+        <!-- Middle: Name -->
+        <!-- Middle: Name & Brand/Model -->
+        <div class="card-body">
+          <div class="item-meta" *ngIf="item.brand || item.model">
+            {{ item.brand }} {{ item.model }}
+          </div>
+          <h3 class="item-name">{{ item.name || item.itemName }}</h3>
+          <p class="item-avail" [class.low-stock]="getRemainingQty(item) <= 0" *ngIf="!isExternal(item)">
+            <strong>{{ getRemainingQty(item) }}</strong>
+            <span class="uom-badge" *ngIf="item.uom">{{ item.uom }}</span>
+          </p>
+          <div class="stock-info-tiny" *ngIf="!isExternal(item)">
+            <span>Stock: {{ getAvailabilityForItem(item.id)?.total || item.totalQuantity }}</span>
+            <span class="repair-badge" *ngIf="getRepairQty(item) > 0">
+              <i class="fas fa-tools"></i> {{ getRepairQty(item) }} in repair
+            </span>
+          </div>
+        </div>
+
+        <!-- Bottom: Qty & Add to Cart -->
+        <div class="card-footer" (click)="$event.stopPropagation()">
+          <div class="usage-stats">
+            <div class="booked-info" *ngIf="getGroupBookedQty(item) > 0">
+              <span class="badge-booked"
+                [class.overbook]="getGroupBookedQty(item) > (getAvailabilityForItem(item.id)?.total || 0)">
+                In This Event: {{ getGroupBookedQty(item) }}
+              </span>
+            </div>
+            <div class="global-usage" *ngIf="getOtherUsageQty(item) > 0">
+              <span class="badge-other">Other Events: {{ getOtherUsageQty(item) }}</span>
+            </div>
+          </div>
+
+          <div class="footer-controls">
+            <div class="qty-note-wrap" *ngIf="!isCatalogMode">
+              <div class="qty-selector-mini">
+                <label class="qty-label">Qty:</label>
+                <input type="number" class="qty-input" [value]="getQtyForItem(item.id)"
+                  (input)="updateQty(item.id, $any($event.target).value)" min="1" />
+              </div>
+              <div class="note-input-mini">
+                <input type="text" placeholder="Add note..." [ngModel]="itemNotes().get(item.id)"
+                  (ngModelChange)="updateItemNote(item.id, $event)" />
+              </div>
+            </div>
+            <div class="booking-buttons">
+              <button *ngIf="isCatalogMode && (isAdmin || isTech)" class="btn-edit-item"
+                (click)="openCreateModal(item)" title="Edit item / quantity">
+                <i class="fas fa-edit"></i>
+                <span>Edit</span>
+              </button>
+              <button *ngIf="!isCatalogMode || isAdmin || isTech" class="btn-report-damage"
+                (click)="onReportDamage(item)" title="Report Damage">
+                <i class="fas fa-exclamation-triangle"></i>
+              </button>
+              <button *ngIf="(isAdmin || isManager) && !isCatalogMode" class="btn-add-mini" (click)="addToCart(item)"
+                [disabled]="isPastEvent() || getQtyForItem(item.id) <= 0"
+                [class.btn-overbook]="isShortageAfterAdd(item)"
+                [title]="isShortageAfterAdd(item) ? 'Adding this quantity will overbook the stock' : 'Add to cart'">
+                <i class="fas fa-plus"></i>
+                <span>{{ isShortageAfterAdd(item) ? 'Overbook' : 'Add' }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cart Floating Button -->
+  <button *ngIf="(isAdmin || isManager) && !isCatalogMode" class="floating-cart-btn" (click)="goToCart()">
+    <i class="fas fa-shopping-cart"></i>
+    <span class="badge" *ngIf="cartCount > 0">{{ cartCount }}</span>
+  </button>
+
+  <!-- Modals (Kept for functionality) -->
+  <div class="modal-overlay" *ngIf="showRentalModal" (click)="closeRentalModal()">
+    <div class="modal-content glass-modal" (click)="$event.stopPropagation()">
+      <h2>📝 Request Rental</h2>
+      <!-- Mode Toggle -->
+      <div class="modal-mode-toggle">
+        <button [class.active]="rentalMode === 'RENTAL'" (click)="rentalMode = 'RENTAL'">
+          <i class="fa-solid fa-truck-fast"></i>
+          <span>External Rental</span>
+        </button>
+        <button [class.active]="rentalMode === 'NOTE'" (click)="rentalMode = 'NOTE'">
+          <i class="fa-solid fa-pen-to-square"></i>
+          <span>Handover Note</span>
+        </button>
+      </div>
+
+      <div class="form-grid">
+        <!-- Rental Mode Fields -->
+        <ng-container *ngIf="rentalMode === 'RENTAL'">
+          <div class="form-group">
+            <label>Category</label>
+            <select [(ngModel)]="rentalRequest.category">
+              <option *ngFor="let c of categories" [value]="c.id" [hidden]="c.id === 'all'">{{ c.name.en }}</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Brand/Model</label>
+            <input [(ngModel)]="rentalRequest.brandModel" placeholder="e.g. JBL ">
+          </div>
+          <div class="form-group">
+            <label>Item Name</label>
+            <input [(ngModel)]="rentalRequest.itemName" placeholder="e.g. JBL Speaker">
+          </div>
+          <div class="form-group">
+            <label>Description / Note</label>
+            <input [(ngModel)]="rentalRequest.note" placeholder="e.g. Rent from? When?">
+          </div>
+          <div class="form-group">
+            <label>Qty</label>
+            <input type="number" [(ngModel)]="rentalRequest.qty" min="1">
+          </div>
+        </ng-container>
+
+        <!-- Note Mode Fields -->
+        <ng-container *ngIf="rentalMode === 'NOTE'">
+          <div class="form-group span-2">
+            <label>Topic / Subject</label>
+            <input [(ngModel)]="rentalRequest.itemName" placeholder="e.g. Bring extra batteries">
+          </div>
+          <div class="form-group span-2">
+            <label>Instructions / Details</label>
+            <textarea [(ngModel)]="rentalRequest.note" rows="3" placeholder="Explain the details here..."></textarea>
+          </div>
+        </ng-container>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" (click)="closeRentalModal()">Cancel</button>
+        <button class="btn-confirm" (click)="submitRentalRequest()">Submit</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" *ngIf="showCreateModal" (click)="closeCreateModal()">
+    <div class="modal-content glass-modal create-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>✨ {{ newItem.id ? 'Edit Item' : 'New Item' }}</h2>
+        <button class="close-btn" (click)="closeCreateModal()">×</button>
+      </div>
+
+      <div class="modal-scroll-area">
+        <div class="form-grid-2col">
+          <div class="form-group span-2">
+            <label>Name (Description) <span class="required">*</span></label>
+            <input [(ngModel)]="newItem.name" placeholder="Item name / Description">
+          </div>
+
+          <div class="form-group">
+            <label>Category</label>
+            <select [(ngModel)]="newItem.category">
+              <option *ngFor="let c of categories" [value]="c.id" [hidden]="c.id === 'all'">{{ c.name.en }}</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>UOM (Unit of Measure)</label>
+            <select [(ngModel)]="newItem.uom">
+              <option *ngFor="let opt of uomOptions" [value]="opt.value">{{ opt.label }}</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Brand <span class="required">*</span></label>
+            <input [(ngModel)]="newItem.brand" placeholder="e.g. JBL, Yamaha">
+          </div>
+
+          <div class="form-group">
+            <label>Model <span class="required">*</span></label>
+            <input [(ngModel)]="newItem.model" placeholder="e.g. SRX815, QL5">
+          </div>
+
+          <div class="form-group">
+            <label>Total Qty</label>
+            <input type="number" [(ngModel)]="newItem.totalQuantity" min="1">
+          </div>
+
+          <div class="form-group">
+            <label>Serial Number (Optional)</label>
+            <input [(ngModel)]="newItem.serial" placeholder="e.g. SN123456">
+          </div>
+
+          <div class="form-group">
+            <label><i class="fas fa-tools"></i> Repair Qty (Broken Items)</label>
+            <input type="number" [ngModel]="newItem.spec?.repair_qty || 0" (ngModelChange)="onRepairQtyChange($event)"
+              placeholder="Number of units in repair">
+          </div>
+
+          <div class="form-group">
+            <label>Price (Rental/Replacement)</label>
+            <input type="number" [(ngModel)]="newItem.price" min="0">
+          </div>
+
+          <div class="form-group span-2">
+            <label>Remark / Notes</label>
+            <textarea [(ngModel)]="newItem.remark" rows="2" placeholder="Internal notes..."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-secondary" (click)="closeCreateModal()">Cancel</button>
+        <button class="btn-primary" (click)="createItem()">{{ newItem.id ? 'Save Changes' : 'Create' }}</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Report Damage Modal -->
+  <div class="modal-overlay" *ngIf="showDamageModal" (click)="closeDamageModal()">
+    <div class="modal-content glass-modal damage-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>⚠️ Report Broken Item</h2>
+        <button class="close-btn" (click)="closeDamageModal()">×</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="damage-item-summary">
+          <strong>{{ damageItem?.name }}</strong>
+          <div class="damage-stock-row">
+            <span class="stock-chip">Total: {{ damageItem?.totalQuantity || 0 }} {{ damageItem?.uom || 'units' }}</span>
+            <span class="stock-chip repair" *ngIf="getRepairQty(damageItem) > 0">
+              In repair: {{ getRepairQty(damageItem) }}
+            </span>
+            <span class="stock-chip ok">Reportable: {{ getMaxDamageQty() }}</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Broken quantity <span class="required">*</span></label>
+          <input type="number" [(ngModel)]="damageQty" min="1" [max]="getMaxDamageQty()" inputmode="numeric">
+          <small class="hint warn" *ngIf="damageQty > getMaxDamageQty()">
+            Cannot exceed {{ getMaxDamageQty() }} — the rest are already in repair or don't exist.
+          </small>
+        </div>
+
+        <p class="damage-note">
+          The broken quantity is deducted from available stock immediately.
+          A Tech Lead or Admin will then decide in <b>Maintenance</b> whether it is repaired (returned to stock)
+          or written off permanently.
+        </p>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-cancel" (click)="closeDamageModal()">Cancel</button>
+        <button class="btn-confirm danger" (click)="confirmReportDamage()"
+          [disabled]="damageQty <= 0 || damageQty > getMaxDamageQty()">
+          <i class="fas fa-exclamation-triangle"></i> Report Broken
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Usage Details Modal -->
+  <div class="modal-overlay" *ngIf="showUsageModal" (click)="closeUsageModal()">
+    <div class="modal-content usage-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>📅 Usage Details: {{ selectedUsageItem?.name }}</h2>
+        <button class="close-btn" (click)="closeUsageModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="usage-summary">
+          <div class="stat-box">
+            <span class="label">Total Stock</span>
+            <span class="value">{{ getAvailabilityForItem(selectedUsageItem?.id)?.total ||
+              selectedUsageItem?.totalQuantity }}</span>
+          </div>
+          <div class="stat-box">
+            <span class="label">Remaining</span>
+            <span class="value highlight">{{ getRemainingQty(selectedUsageItem) }}</span>
+          </div>
+        </div>
+
+        <div class="usage-list">
+          <div class="usage-item-header">
+            <span>Event Name</span>
+            <span class="qty-col">Qty</span>
+            <span>Duration</span>
+            <span>Status</span>
+          </div>
+          <div class="usage-item" *ngFor="let usage of getUsageDetails(selectedUsageItem)">
+            <span class="event-name" [title]="usage.eventName">{{ usage.eventName }}</span>
+            <span class="usage-qty qty-col">{{ usage.quantity }}</span>
+            <span class="usage-dates">{{ usage.startDate | date:'d MMM' }} - {{ usage.endDate | date:'d MMM'
+              }}</span>
+            <span class="usage-status badge" [attr.data-status]="usage.status">
+              {{ usage.status }}
+            </span>
+          </div>
+        </div>
+
+        <div class="no-usage" *ngIf="getUsageDetails(selectedUsageItem).length === 0">
+          <p>No overlapping events for this item.</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-confirm" (click)="closeUsageModal()">Close</button>
+      </div>
+    </div>
+  </div>
+</div>

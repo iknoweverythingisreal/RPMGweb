@@ -1,0 +1,139 @@
+@use 'variable' as *;
+@use 'mixins' as *;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: linear-gradient(145deg, $color-bg-gradient-start, $color-bg-gradient-end);
+  color: $color-text-light;
+  font-family: $font-main;
+}
+
+/* === Header === */
+.event-header {
+  @include flex-center;
+  justify-content: space-between;
+  padding: $space-md $space-lg;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(17, 25, 40, 0.85);
+  backdrop-filter: blur(12px);
+
+  h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    @include text-gradient;
+  }
+
+  .actions {
+    display: flex;
+    gap: $space-sm;
+
+    button {
+      @include button-primary;
+      font-size: 0.9rem;
+      padding: 8px 14px;
+    }
+  }
+}
+
+/* === Content === */
+.event-list {
+  flex: 1;
+  padding: $space-lg;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: $space-lg;
+
+  .event-card {
+    @include card;
+    background: rgba(255, 255, 255, 0.05);
+    padding: $space-md;
+    border-radius: $radius-lg;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(10px);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    cursor: pointer;
+
+    &:hover {
+      transform: translateY(-4px);
+      box-shadow: $shadow-glow;
+    }
+
+    .event-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: $color-primary-light;
+      margin-bottom: $space-xs;
+    }
+
+    .event-date {
+      font-size: 0.85rem;
+      color: $color-text-muted;
+      margin-bottom: $space-sm;
+    }
+
+    .event-status {
+      display: inline-block;
+      font-size: 0.8rem;
+      padding: 3px 10px;
+      border-radius: $radius-md;
+      background: rgba(0, 255, 255, 0.1);
+      color: $color-primary-light;
+      margin-bottom: $space-sm;
+
+      &.draft {
+        background: rgba(255, 255, 0, 0.15);
+        color: #fde047;
+      }
+
+      &.inprogress {
+        background: rgba(59, 130, 246, 0.15);
+        color: #60a5fa;
+      }
+
+      &.completed {
+        background: rgba(16, 185, 129, 0.15);
+        color: #34d399;
+      }
+
+      &.issue {
+        background: rgba(239, 68, 68, 0.15);
+        color: #f87171;
+      }
+    }
+
+    .event-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: $space-sm;
+
+      button {
+        @include button-secondary;
+        font-size: 0.85rem;
+        padding: 6px 12px;
+      }
+    }
+  }
+
+  @include mobile {
+    grid-template-columns: 1fr;
+    padding: $space-md;
+  }
+
+  @include tablet {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* === Footer === */
+.event-footer-global {
+  text-align: center;
+  padding: $space-sm;
+  font-size: 0.8rem;
+  color: $color-text-muted;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(17, 25, 40, 0.7);
+}

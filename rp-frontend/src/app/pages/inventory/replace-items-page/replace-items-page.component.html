@@ -1,0 +1,304 @@
+<div class="replace-items-page">
+    <div class="header">
+        <button class="btn-back" (click)="goBack()">
+            <i class="fas fa-arrow-left"></i> Back
+        </button>
+        <h1>Swap Items</h1>
+        <div class="search-box">
+            <input type="text" placeholder="Search Item, Event, Location..." [(ngModel)]="searchQuery"
+                (input)="filterItems()">
+        </div>
+    </div>
+
+    <!-- Category Sections -->
+    <div *ngFor="let category of categories" class="category-section">
+        <div class="category-header" *ngIf="getItemsByCategory(category).length > 0">
+            <h2>{{ category }}</h2>
+            <span class="item-count">{{ getItemsByCategory(category).length }} items</span>
+        </div>
+
+        <div class="items-grid">
+            <div class="item-card" *ngFor="let item of getItemsByCategory(category)">
+                <div class="card-header">
+                    <div class="header-main">
+                        <h3>{{ getItemDisplayName(item) }}</h3>
+                        <span class="category-badge">{{ item.category }}</span>
+                    </div>
+                    <div class="item-stats" *ngIf="getAvailabilityForItem(item.itemId) as avail">
+                        <span class="stat-badge" [class.low-stock]="avail.available <= 0">
+                            <i class="fas" [class.fa-check-circle]="avail.available > 0"
+                                [class.fa-exclamation-triangle]="avail.available <= 0"></i>
+                            Available: <strong>{{ avail.available }}</strong>
+                        </span>
+                        <span class="stat-badge overbooked" *ngIf="avail.available < 0">
+                            <i class="fas fa-layer-group"></i> Overbooked: <strong>{{ Math.abs(avail.available)
+                                }}</strong>
+                        </span>
+                        <span class="stat-badge total">
+                            <i class="fas fa-warehouse"></i> Stock: {{ avail.total }}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="card-body timeline-view">
+                    <!-- NOW Section -->
+                    <div class="timeline-slot now" *ngIf="item.nowEvent">
+                        <div class="slot-header">
+                            <span class="pulse-icon"></span>
+                            <span class="slot-badge">NOW</span>
+                            <span class="event-name">{{ item.nowEvent.eventName }}</span>
+                        </div>
+                        <div class="slot-details">
+                            <div class="detail-item">
+                                <i class="fas fa-box"></i>
+                                <strong>{{ item.nowEvent.requestedQuantity }}</strong> units
+                            </div>
+                            <div class="detail-item">
+                                <i class="fas fa-clock"></i>
+                                <span>{{ item.nowEvent.eventStartDate | date:'MMM d, HH:mm' }}</span>
+                            </div>
+                            <div class="detail-item">
+                                <i class="fas fa-map-marker-alt"></i>
+                                <span>{{ item.nowEvent.location || 'N/A' }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- NEXT Section -->
+                    <div class="timeline-slot next" *ngIf="item.nextEvent">
+                        <div class="slot-header">
+                            <i class="fas fa-chevron-right connector-icon" style="opacity: 0.3; display: none;"></i>
+                            <span class="slot-badge">NEXT</span>
+                            <span class="event-name">{{ item.nextEvent.eventName }}</span>
+                        </div>
+                        <div class="slot-details">
+                            <div class="detail-item">
+                                <i class="fas fa-box"></i>
+                                <strong>{{ item.nextEvent.requestedQuantity }}</strong> units
+                            </div>
+                            <div class="detail-item">
+                                <i class="fas fa-clock"></i>
+                                <span>{{ item.nextEvent.eventStartDate | date:'MMM d, HH:mm' }}</span>
+                            </div>
+                            <div class="detail-item">
+                                <i class="fas fa-map-marker-alt"></i>
+                                <span>{{ item.nextEvent.location || 'N/A' }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="no-next-state" *ngIf="!item.nextEvent && item.nowEvent">
+                        <i class="fas fa-check-circle"></i>
+                        <p>Item available after this event</p>
+                    </div>
+                </div>
+
+                <div class="card-footer">
+                    <button class="btn-move" (click)="openMoveModal(item)">
+                        <i class="fas fa-exchange-alt"></i> Manage Logistics
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-state" *ngIf="filteredItems.length === 0">
+        <i class="fas fa-search" style="font-size: 48px; color: #334155; margin-bottom: 20px;"></i>
+        <p>No active items found matching your search.</p>
+    </div>
+
+    <!-- Action Modal -->
+    <div class="modal-overlay" *ngIf="showModal" (click)="closeModal()">
+        <div class="modal-content" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+                <h2>Manage Item: {{ getItemDisplayName(selectedItem) }}</h2>
+                <button class="close-btn" (click)="closeModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <!-- Step 1: Action Type -->
+                <div class="wizard-step" *ngIf="currentStep === 1">
+                    <h3>Action Selection</h3>
+                    <div class="visual-cards">
+                        <div class="v-card" [class.active]="actionType === 'REPLACE_WITH'"
+                            (click)="actionType = 'REPLACE_WITH'; nextStep()">
+                            <div class="v-card-icon"><i class="fas fa-sync-alt"></i></div>
+                            <div class="v-card-text">
+                                <strong>Substitute</strong>
+                                <span>Replace this item with another one</span>
+                            </div>
+                        </div>
+                        <div class="v-card" [class.active]="actionType === 'MOVE_TO_STORE'"
+                            (click)="actionType = 'MOVE_TO_STORE'; nextStep()">
+                            <div class="v-card-icon"><i class="fas fa-warehouse"></i></div>
+                            <div class="v-card-text">
+                                <strong>Return to Store</strong>
+                                <span>Return item and do not replace</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Source Selection (If Replace) -->
+                <div class="wizard-step" *ngIf="currentStep === 2 && actionType === 'REPLACE_WITH'">
+                    <h3>Replacement Source</h3>
+                    <div class="visual-cards">
+                        <div class="v-card" [class.active]="targetType === 'STORAGE'"
+                            (click)="targetType = 'STORAGE'; nextStep()">
+                            <div class="v-card-icon"><i class="fas fa-boxes"></i></div>
+                            <div class="v-card-text">
+                                <strong>Warehouse</strong>
+                                <span>Get from available stock</span>
+                            </div>
+                        </div>
+                        <div class="v-card" [class.active]="targetType === 'EVENT'"
+                            (click)="targetType = 'EVENT'; currentStep = 25">
+                            <div class="v-card-icon"><i class="fas fa-stream"></i></div>
+                            <div class="v-card-text">
+                                <strong>Another Event</strong>
+                                <span>Take or swap with active event</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2.5: Select Target Event -->
+                <div class="wizard-step" *ngIf="currentStep === 25">
+                    <h3>Select Source Event</h3>
+                    <div class="selection-list">
+                        <div class="selection-item" *ngFor="let ev of activeEvents"
+                            [class.active]="targetEventId === ev.id"
+                            (click)="targetEventId = ev.id; onTargetEventChange(); nextStep()">
+                            <div class="selection-info">
+                                <strong>{{ ev.title }}</strong>
+                                <span><i class="fas fa-calendar-day"></i> {{ ev.startDate | date:'mediumDate' }} • <i
+                                        class="fas fa-map-marker-alt"></i> {{ ev.location || 'N/A' }}</span>
+                            </div>
+                            <i class="fas fa-chevron-right"></i>
+                        </div>
+                    </div>
+                    <button class="btn-text" (click)="currentStep = 2">
+                        <i class="fas fa-arrow-left"></i> Go Back
+                    </button>
+                </div>
+
+                <!-- Step 3: Choose Item -->
+                <div class="wizard-step" *ngIf="currentStep === 3">
+                    <h3>Item Selection</h3>
+
+                    <div class="search-field">
+                        <i class="fas fa-search"></i>
+                        <input type="text" [(ngModel)]="equipmentSearchQuery" (input)="filterCandidateItems()"
+                            placeholder="Find compatible equipment...">
+                    </div>
+
+                    <div class="equipment-list" *ngIf="filteredCandidateItems.length > 0">
+                        <div class="equipment-item" *ngFor="let opt of filteredCandidateItems"
+                            [class.selected]="targetItemId === opt.id" (click)="selectEquipment(opt)">
+                            <div class="equipment-info">
+                                <div class="equipment-name">
+                                    <span class="event-tag" *ngIf="targetType === 'EVENT'">{{ opt.eventName }}</span>
+                                    <strong>{{ getItemDisplayName(opt) }}</strong>
+                                </div>
+                                <div class="equipment-details">
+                                    <span class="availability" [class.available]="opt.availableQuantity > 0"
+                                        [class.out-of-stock]="opt.availableQuantity <= 0">
+                                        <i class="fas" [class.fa-check-circle]="opt.availableQuantity > 0"
+                                            [class.fa-exclamation-triangle]="opt.availableQuantity <= 0"></i>
+                                        {{ opt.availableQuantity > 0 ? 'Stock: ' + opt.availableQuantity : 'Out of
+                                        Stock' }}
+                                    </span>
+                                </div>
+                            </div>
+                            <i class="fas fa-check-circle check-icon" *ngIf="targetItemId === opt.id"></i>
+                        </div>
+                    </div>
+
+                    <div class="empty-results"
+                        *ngIf="candidateItems.length === 0 || filteredCandidateItems.length === 0">
+                        <i class="fas fa-search"></i>
+                        <p>No compatible items found.</p>
+                    </div>
+
+                    <div class="swap-mode-toggle" *ngIf="targetType === 'EVENT' && targetItemId">
+                        <label>Operation Mode</label>
+                        <div class="mode-options">
+                            <button class="mode-btn" [class.active]="swapMode === 'MUTUAL'"
+                                (click)="swapMode = 'MUTUAL'">
+                                <i class="fas fa-retweet"></i> Mutual Swap
+                            </button>
+                            <button class="mode-btn" [class.active]="swapMode === 'ONE_WAY'"
+                                (click)="swapMode = 'ONE_WAY'">
+                                <i class="fas fa-long-arrow-alt-right"></i> One-way
+                            </button>
+                        </div>
+                        <p class="mode-hint">
+                            {{ swapMode === 'MUTUAL' ? 'Exchange between Event A ↔ B' : 'Pull from Event B → A' }}
+                        </p>
+                    </div>
+
+                    <div class="step-actions">
+                        <button class="btn-primary" [disabled]="!targetItemId" (click)="nextStep()">
+                            Next Step <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 4: Confirm -->
+                <div class="wizard-step" *ngIf="currentStep === 4">
+                    <h3>Review Details</h3>
+
+                    <div class="summary-card">
+                        <div class="summary-row">
+                            <span class="label">Action</span>
+                            <span class="value">{{ actionType === 'REPLACE_WITH' ? 'Substitution' : 'Return' }}</span>
+                        </div>
+                        <div class="summary-row" *ngIf="actionType === 'REPLACE_WITH'">
+                            <span class="label">From</span>
+                            <span class="value">{{ targetType === 'STORAGE' ? 'Warehouse' : 'Live Event' }}</span>
+                        </div>
+                        <div class="summary-row" *ngIf="actionType === 'REPLACE_WITH' && swapMode === 'MUTUAL'">
+                            <span class="label">Mode</span>
+                            <span class="value">Mutual Exchange</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-top: 24px;">
+                        <label
+                            style="color: #64748b; font-size: 13px; font-weight: 700; margin-bottom: 12px; display: block;">QUANTITY</label>
+                        <div class="qty-stepper">
+                            <button (click)="swapQuantity = Math.max(1, swapQuantity - 1)"><i
+                                    class="fas fa-minus"></i></button>
+                            <input type="number" [(ngModel)]="swapQuantity" min="1">
+                            <button (click)="swapQuantity = swapQuantity + 1"><i class="fas fa-plus"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-top: 24px;">
+                        <label
+                            style="color: #64748b; font-size: 13px; font-weight: 700; margin-bottom: 12px; display: block;">NOTES</label>
+                        <textarea [(ngModel)]="reason" rows="3"
+                            placeholder="Optional notes for this logistics change..."
+                            style="width: 100%; background: rgba(15, 23, 42, 0.4); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 16px; padding: 16px; color: #fff;"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn-cancel" *ngIf="currentStep === 1" (click)="closeModal()">
+                    Cancel
+                </button>
+                <button class="btn-cancel" *ngIf="currentStep > 1" (click)="prevStep()">
+                    <i class="fas fa-chevron-left"></i> Previous
+                </button>
+                <button class="btn-confirm" *ngIf="currentStep === 4" (click)="confirmAction()"
+                    [disabled]="(actionType === 'REPLACE_WITH' && !targetItemId) || swapQuantity <= 0">
+                    Process Action
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

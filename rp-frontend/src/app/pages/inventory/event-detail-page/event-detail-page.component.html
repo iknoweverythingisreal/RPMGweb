@@ -1,0 +1,154 @@
+<div class="loading-overlay" *ngIf="isLoading">
+  <div class="spinner"></div>
+</div>
+
+<div class="event-detail-page" *ngIf="!isLoading">
+  <!-- Top Action Bar (Compact) -->
+  <div class="top-action-bar">
+    <button class="btn-top btn-back" (click)="goBack()">
+      <span class="icon">←</span>
+      <span class="text">ย้อนกลับ</span>
+    </button>
+
+    <div class="top-right-actions">
+      <button class="btn-top btn-request-rental" (click)="openGlobalRentRequest()">
+        <i class="fas fa-clipboard-list"></i>
+        <span>Rental</span>
+      </button>
+      <button class="btn-top btn-create-item" (click)="openAddItemModal()" *ngIf="!isTechLead">
+        <span class="icon">+</span>
+        <span>New Item</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Search & Filter Section (Compact) -->
+  <div class="search-filter-section">
+    <div class="search-box">
+      <input type="text" placeholder="Search..." [(ngModel)]="searchQuery" />
+    </div>
+
+    <div class="filter-row">
+      <div class="select-wrapper">
+        <select [(ngModel)]="selectedCategory">
+          <option value="ALL">All</option>
+          <option value="SOUND">Sound</option>
+          <option value="LIGHTING">Lighting</option>
+          <option value="LED">LED</option>
+          <option value="IT">IT</option>
+          <option value="VISUAL">Visual</option>
+          <option value="SERVICE_ITEM">External</option>
+        </select>
+      </div>
+
+      <button class="btn-lang">
+        <i class="fas fa-globe"></i>
+        <span>EN</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Equipment Grid (Compact 3-Column) -->
+  <div class="equipment-grid compact-3-col">
+    <div class="compact-card" *ngFor="let item of filteredItems" [class.is-past]="isPastEvent(event)"
+      (click)="selectEvent(item.id)">
+
+      <!-- Thumbnail -->
+      <div class="card-thumb">
+        <img [src]="item.imageUrl || 'assets/images/placeholder-equipment.png'" [alt]="item.itemName" />
+        <span class="status-dot" [class]="getStatusClass(item.status)"></span>
+        <span class="substitution-badge" *ngIf="item.isSubstituted" title="This item was substituted">
+          <i class="fas fa-exchange-alt"></i>
+        </span>
+      </div>
+
+      <!-- Info -->
+      <div class="card-info">
+        <h3 class="item-name">{{ item.itemName }}</h3>
+        <div class="item-meta">
+          <span class="qty">{{ item.allocatedQuantity }}/{{ item.requestedQuantity }}</span>
+          <span class="uom">{{ item.uom }}</span>
+        </div>
+      </div>
+
+      <!-- Quick Add Button -->
+      <button class="btn-quick-add" (click)="$event.stopPropagation(); updateQuantity(item, 1)">
+        <i class="fas fa-plus"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Equipment Substitution History (NEW) -->
+  <div class="substitution-section card" *ngIf="substitutions.length > 0">
+    <div class="section-header">
+      <h3><i class="fas fa-exchange-alt"></i> ประวัติการเปลี่ยนอุปกรณ์ (Substitution Result)</h3>
+    </div>
+    <div class="table-responsive">
+      <table class="modern-table substitution-table">
+        <thead>
+          <tr>
+            <th>วันที่</th>
+            <th>อุปกรณ์เดิม</th>
+            <th>อุปกรณ์ใหม่</th>
+            <th>เหตุผล</th>
+            <th>แหล่งที่มา</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let sub of substitutions">
+            <td>{{ sub.changedAt | date:'short' }}</td>
+            <td class="original-item">{{ sub.data.originalItemName }}</td>
+            <td class="new-item">
+              <span class="arrow">→</span> {{ sub.data.newItemName }}
+            </td>
+            <td>{{ sub.data.reason }}</td>
+            <td>
+              <span class="badge" [class.badge-storage]="sub.data.source === 'STORAGE'"
+                [class.badge-event]="sub.data.source === 'EVENT'">
+                {{ sub.data.source }}
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Floating Cart Button -->
+  <button class="floating-cart-btn" (click)="goToCart()">
+    <i class="fas fa-shopping-cart"></i>
+    <span class="cart-badge" *ngIf="items.length > 0">{{ items.length }}</span>
+  </button>
+</div>
+
+<!-- Modals (Kept for functionality) -->
+<div class="serial-picker-backdrop" *ngIf="serialPickerItem">
+  <div class="serial-picker-modal glass-card">
+    <h3>Serials: {{ serialPickerItem.itemName }}</h3>
+    <div class="modal-body">
+      <table class="modern-table">
+        <thead>
+          <tr>
+            <th>Pick</th>
+            <th>Serial</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let s of unitList">
+            <td>
+              <input type="checkbox" [disabled]="s.status !== 'AVAILABLE'"
+                (change)="togglePick(s.itemUnitId, $any($event.target).checked)" />
+            </td>
+            <td>{{ s.serial }}</td>
+            <td>{{ s.status }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-primary" [disabled]="pickedUnits.length === 0" (click)="submitPickedUnits()">Add</button>
+      <button class="btn-secondary" (click)="closePicker()">Close</button>
+    </div>
+  </div>
+</div>
