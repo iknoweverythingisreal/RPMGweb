@@ -1,9 +1,8 @@
 export const environment = {
     production: true,
-    // Same-origin deployment: frontend and backend live behind the same domain,
-    // with the web server proxying /api/** to the Spring Boot app (see DEPLOY.md).
-    // This keeps the build host-agnostic — no domain ever needs to be baked in.
-    // If the backend is ever hosted on a DIFFERENT domain, put its full URL here
-    // (e.g. 'https://api.example.com') and rebuild.
-    apiUrl: 'https://avpro-backend.rpmediagroup.co'
+    // Same-origin: the app calls /api/... on whatever domain/IP serves it,
+    // and nginx (rp-frontend/nginx.conf in the frontend container) proxies
+    // that to the backend container. Works on any domain, no CORS, no DNS.
+    // Only set a full URL here if the backend must live on a separate domain.
+    apiUrl: ''
 };

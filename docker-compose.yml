@@ -19,8 +19,10 @@ services:
       TEAMUP_API_KEY: ${TEAMUP_API_KEY:-}
       TEAMUP_CALENDAR_KEY: ${TEAMUP_CALENDAR_KEY:-}
       SPRING_JPA_SHOW_SQL: "false"
-    expose:
-      - "8080"
+    # Reachable from the host (for a reverse-proxied subdomain if ever needed),
+    # but not exposed to the internet directly
+    ports:
+      - "127.0.0.1:8080:8080"
 
   frontend:
     build: ./rp-frontend
