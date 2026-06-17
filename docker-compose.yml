@@ -19,6 +19,11 @@ services:
       TEAMUP_API_KEY: ${TEAMUP_API_KEY:-}
       TEAMUP_CALENDAR_KEY: ${TEAMUP_CALENDAR_KEY:-}
       SPRING_JPA_SHOW_SQL: "false"
+      JAVA_OPTS: "-Xmx512m -Xms256m"
+    deploy:
+      resources:
+        limits:
+          memory: 768M
     # Reachable from the host (for a reverse-proxied subdomain if ever needed),
     # but not exposed to the internet directly
     ports:
