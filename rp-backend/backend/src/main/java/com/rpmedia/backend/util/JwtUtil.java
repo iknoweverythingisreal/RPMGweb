@@ -17,7 +17,7 @@ import java.util.function.Function;
 @Component
 public class JwtUtil {
 
-    @Value("${jwt.secret:MySecretKeyForJWTTokenGenerationAndValidation2024}")
+    @Value("${jwt.secret:YOUR_JWT_SECRET_HERE_CHANGE_ME}")
     private String secret;
 
     @Value("${jwt.expiration:86400000}") // 24 hours
@@ -103,13 +103,12 @@ public class JwtUtil {
 
     public String generateTokenWithClaims(String username, Map<String, Object> claims) {
         return Jwts.builder()
-                .setClaims(claims)     // ⭐ Claims ของ Phase 11
-                .setSubject(username)  // ⭐ ใช้ email ของ user
+                .setClaims(claims) // ⭐ Claims ของ Phase 11
+                .setSubject(username) // ⭐ ใช้ email ของ user
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
-    
-    
+
 }
