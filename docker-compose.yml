@@ -6,48 +6,25 @@ version: "3.8"
 #   3. เปิด http://<server-ip>  (frontend proxies /api → backend อัตโนมัติ)
 
 services:
-  backend:
-    build: ./rp-backend/backend
+  rpmedia-backend:
+    image: ghcr.io/iknoweverythingisreal/rpmgweb:latest
     container_name: rpmedia-backend
     restart: unless-stopped
+    ports:
+      - "80:8080"
     environment:
-      # Spring reads these natively — no properties file needed in the image
+      # Spring reads these natively
+      SPRING_PROFILES_ACTIVE: prod
       SPRING_DATASOURCE_URL: ${DB_URL}
       SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
       TEAMUP_API_KEY: ${TEAMUP_API_KEY:-}
       TEAMUP_CALENDAR_KEY: ${TEAMUP_CALENDAR_KEY:-}
+      # Performance and logs
       SPRING_JPA_SHOW_SQL: "false"
       JAVA_OPTS: "-Xmx512m -Xms256m"
     deploy:
       resources:
         limits:
           memory: 768M
-    # Reachable from the host (for a reverse-proxied subdomain if ever needed),
-    # but not exposed to the internet directly
-    ports:
-      - "127.0.0.1:8080:8080"
-
-  frontend:
-    build: ./rp-frontend
-    container_name: rpmedia-frontend
-    restart: unless-stopped
-    ports:
-      - "80:80"
-    depends_on:
-      - backend
-  # ── PostgreSQL สำหรับรันในเครื่องเดียวกัน ──
-  db:
-    image: postgres:16-alpine
-    container_name: rpmedia-db
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: accpro_db
-      POSTGRES_USER: accpro_user
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-
-volumes:
-  pgdata:
