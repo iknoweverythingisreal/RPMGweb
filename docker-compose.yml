@@ -38,19 +38,19 @@ services:
     depends_on:
       - backend
 
-# ── ถ้าอยากรัน PostgreSQL ในเครื่องเดียวกันแทน DB ภายนอก ──
-# เอาคอมเมนต์ออก แล้วตั้ง DB_URL=jdbc:postgresql://db:5432/rpmedia_db
-#
-#  db:
-#    image: postgres:16-alpine
-#    container_name: rpmedia-db
-#    restart: unless-stopped
-#    environment:
-#      POSTGRES_DB: rpmedia_db
-#      POSTGRES_USER: ${DB_USERNAME}
-#      POSTGRES_PASSWORD: ${DB_PASSWORD}
-#    volumes:
-#      - pgdata:/var/lib/postgresql/data
-#
-# volumes:
-#   pgdata:
+  # ── ถ้าอยากรัน PostgreSQL ในเครื่องเดียวกันแทน DB ภายนอก ──
+  # เอาคอมเมนต์ออก แล้วตั้ง DB_URL=jdbc:postgresql://db:5432/rpmedia_db
+  #
+  db:
+    image: postgres:16-alpine
+    container_name: rpmedia-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: rpmedia_db
+      POSTGRES_USER: rpmedia_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
