@@ -7,7 +7,7 @@ version: "3.8"
 
 services:
   backend:
-    build: ./RPMGweb/rp-backend/backend
+    build: ./rp-backend/backend
     container_name: rpmedia-backend
     restart: unless-stopped
     environment:
@@ -27,7 +27,7 @@ services:
       - '127.0.0.1:8080:8080'
 
   frontend:
-    build: ./RPMGweb/rp-frontend
+    build: ./rp-frontend
     container_name: rpmedia-frontend
     restart: unless-stopped
     ports:
