@@ -55,7 +55,8 @@ public class UserController {
     @GetMapping("/light")
     public List<com.rpmedia.backend.dto.UserLightDTO> getUsersLight() {
         return userRepository.findAll().stream()
-                .filter(u -> Boolean.TRUE.equals(u.getIsActive()))
+                // is_active เป็น NULL สำหรับ user เก่าที่ถูกสร้างก่อนมีคอลัมน์นี้ -> ถือว่ายัง active อยู่
+                .filter(u -> u.getIsActive() == null || u.getIsActive())
                 .map(u -> new com.rpmedia.backend.dto.UserLightDTO(
                         u.getId(),
                         // ใช้ name (ที่แมปกับ full_name) ถ้าไม่มี fallback เป็น email

@@ -69,6 +69,7 @@ public class SerialOpsService {
               AND e.id <> ?
               AND e.start_date <= ?
               AND e.end_date >= ?
+              AND (e.status IS NULL OR e.status <> 'CANCELLED')
               AND (ei.status IS NULL OR (ei.status <> 'CANCELLED' AND ei.status <> 'RETURNED'))
               AND eiu.status IN ('PICKED', 'OUT', 'RESERVED')
         """,

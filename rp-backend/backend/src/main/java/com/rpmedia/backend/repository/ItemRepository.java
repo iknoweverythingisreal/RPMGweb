@@ -39,6 +39,7 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
                 WHEN e.start_date <= :endDate
                  AND COALESCE(ei.return_date, e.end_date) >= :startDate
                  AND COALESCE(ei.status, 'CONFIRMED') <> 'CANCELLED'
+                 AND COALESCE(e.status, 'CONFIRMED') <> 'CANCELLED'
                 THEN ei.allocated_quantity
                 ELSE 0
               END
@@ -75,6 +76,7 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
                 AND e.start_date <= :endDate
                 AND COALESCE(ei.return_date, e.end_date) >= :startDate
                 AND COALESCE(ei.status,'CONFIRMED') <> 'CANCELLED'
+                AND COALESCE(e.status,'CONFIRMED') <> 'CANCELLED'
               THEN ei.allocated_quantity ELSE 0 END
             ),0),
           0

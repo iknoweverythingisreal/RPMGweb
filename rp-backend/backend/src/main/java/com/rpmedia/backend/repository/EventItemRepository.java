@@ -35,6 +35,7 @@ public interface EventItemRepository extends JpaRepository<EventItem, Long> {
         and (:excludeEventId is null or ei.event.id <> :excludeEventId)
         and ei.event.startDate <= :toDate
         and ei.event.endDate >= :fromDate
+        and (ei.event.status is null or ei.event.status <> 'CANCELLED')
         and (ei.status is null or (ei.status <> 'CANCELLED' and ei.status <> 'RETURNED'))
       """)
   Long sumAllocatedOverlap(
@@ -49,6 +50,7 @@ public interface EventItemRepository extends JpaRepository<EventItem, Long> {
       where ei.item.id = :itemId
         and ei.event.startDate <= :toDate
         and ei.event.endDate >= :fromDate
+        and (ei.event.status is null or ei.event.status <> 'CANCELLED')
         and (ei.status is null or (ei.status <> 'CANCELLED' and ei.status <> 'RETURNED'))
       """)
   List<EventItem> findOverlappingUsage(
@@ -77,6 +79,7 @@ public interface EventItemRepository extends JpaRepository<EventItem, Long> {
       where (:excludeEventId is null or ei.event.id <> :excludeEventId)
         and ei.event.startDate <= :toDate
         and ei.event.endDate >= :fromDate
+        and (ei.event.status is null or ei.event.status <> 'CANCELLED')
         and (ei.status is null or (ei.status <> 'CANCELLED' and ei.status <> 'RETURNED'))
         and (ei.item.id in :itemIds)
       group by ei.item.id
@@ -97,6 +100,7 @@ public interface EventItemRepository extends JpaRepository<EventItem, Long> {
         AND ei.event.id <> :eventId
         AND e.startDate <= :endDate
         AND e.endDate >= :startDate
+        AND (e.status is null or e.status <> 'CANCELLED')
         AND (ei.status is null or (ei.status <> 'CANCELLED' and ei.status <> 'RETURNED'))
       """)
   List<String> findSerialsInUse(
