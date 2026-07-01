@@ -205,6 +205,12 @@ export class InventoryPageComponent implements OnInit, OnDestroy {
 
       if (this.eventId) {
         this.loadEventAndAvailability();
+      } else {
+        // Catalog mode (no event context): show real-time "in warehouse now"
+        // availability instead of the static, possibly stale item.availableQuantity.
+        const today = new Date().toISOString().slice(0, 10);
+        this.eventDates = { start: today, end: today };
+        this.fetchAvailabilityForAll();
       }
     });
   }
