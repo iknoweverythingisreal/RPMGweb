@@ -1,7 +1,5 @@
-version: "3.8"
-
-# RPMedia — full stack in two containers.
-#   1. cp .env.example .env   แล้วกรอกค่าจริง
+# RPMedia — backend + frontend (ใช้ postgres ตัวจริงของ DMS บน host)
+#   1. cp .env.example .env   แล้วกรอกค่าจริง (DB_PASSWORD, JWT_SECRET)
 #   2. docker compose up -d --build
 #   3. เปิด http://<server-ip>  (frontend proxies /api → backend อัตโนมัติ)
 
@@ -11,18 +9,18 @@ services:
     container_name: backend
     restart: unless-stopped
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/accpro_db?sslmode=disable
+      # ต่อ postgres ตัวจริงของ DMS (shared DB) ที่รันบน host — ไม่ใช่ container เปล่า
+      SPRING_DATASOURCE_URL: jdbc:postgresql://187.127.118.69:5432/accpro_db
       SPRING_DATASOURCE_USERNAME: accpro_user
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
       TEAMUP_API_KEY: ${TEAMUP_API_KEY:-}
       TEAMUP_CALENDAR_KEY: ${TEAMUP_CALENDAR_KEY:-}
       SPRING_JPA_SHOW_SQL: 'false'
-      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      # none = ห้าม Hibernate แก้ schema ของฐานที่แชร์กับ DMS
+      SPRING_JPA_HIBERNATE_DDL_AUTO: none
       SPRING_FLYWAY_ENABLED: 'false'
       JAVA_OPTS: '-Xmx512m -Xms256m'
-    depends_on:
-      - db
     ports:
       - '127.0.0.1:8080:8080'
 
@@ -34,17 +32,3 @@ services:
       - '80:80'
     depends_on:
       - backend
-
-  db:
-    image: postgres:16-alpine
-    container_name: accpro-db
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: accpro_db
-      POSTGRES_USER: accpro_user
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-
-volumes:
-  pgdata:
