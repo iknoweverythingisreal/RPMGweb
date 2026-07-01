@@ -22,6 +22,13 @@ public class BackendApplication {
   @org.springframework.context.annotation.Bean
   public org.springframework.boot.CommandLineRunner fixData(org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
     return args -> {
+      // ⚠️ ตัวนี้ "แก้ข้อมูล/โครงสร้าง" ในฐาน — อันตรายบนฐานที่แชร์กับแอปอื่น (DMS)
+      // ปิดไว้เป็น default; เปิดเฉพาะเมื่อจงใจ ตั้ง env RPMEDIA_RUN_FIXDATA=true
+      if (!"true".equalsIgnoreCase(System.getenv("RPMEDIA_RUN_FIXDATA"))) {
+        System.out.println("⏭️ [fixData] skipped (ตั้ง RPMEDIA_RUN_FIXDATA=true ถ้าต้องการให้รัน)");
+        return;
+      }
+
       // Fix User roles
       jdbcTemplate.update("UPDATE users SET role = 'EMPLOYEE' WHERE role = 'USER'");
 

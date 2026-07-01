@@ -21,6 +21,12 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
+        // ⚠️ seed ข้อมูลลงฐาน — ปิดไว้ default กันไปเขียนข้อมูลลงฐานที่แชร์กับ DMS
+        // เปิดเฉพาะเมื่อจงใจ ตั้ง env RPMEDIA_RUN_SEED=true
+        if (!"true".equalsIgnoreCase(System.getenv("RPMEDIA_RUN_SEED"))) {
+            System.out.println("⏭️ [DataInitializer] seed skipped (ตั้ง RPMEDIA_RUN_SEED=true ถ้าต้องการ seed)");
+            return;
+        }
         seedServiceItems();
     }
 
